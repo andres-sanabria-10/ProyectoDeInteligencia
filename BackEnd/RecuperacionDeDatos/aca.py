@@ -5,10 +5,10 @@ import random
 import os
 from pymongo import MongoClient
 
-# Cargar el modelo base de spaCy
-nlp = spacy.load("es_core_news_lg")
+# CREAR UN MODELO VACÍO PARA ESPAÑOL
+nlp = spacy.blank("es")
 
-# Añadir o recuperar el componente NER
+# Añadir el componente NER manualmente
 if "ner" not in nlp.pipe_names:
     ner = nlp.add_pipe("ner", last=True)
 else:
@@ -29,108 +29,95 @@ print("Datos obtenidos de la base de datos:")
 for item in data:
     print(item)
 
+# Función para limpiar datos
+def clean_text(text):
+    if not text:
+        return ""
+    return text.strip()
+
 # Preparar los datos de entrenamiento
-# Preparar los datos de entrenamiento originales
 training_data = []
+
 for item in data:
-    nombre_cientifico = item.get("NombreCientifico")
-    nombre_comun = item.get("NombreComun")
-
-    if nombre_cientifico:
-        nombre_cientifico = nombre_cientifico.strip()  # Eliminar espacios innecesarios
-        training_data.append((nombre_cientifico, {"entities": [(0, len(nombre_cientifico), LABEL)]}))
-
-    if nombre_comun:
-        nombre_comun = nombre_comun.strip()  # Eliminar espacios innecesarios
-        training_data.append((nombre_comun, {"entities": [(0, len(nombre_comun), LABEL)]}))
-
-print("Datos de entrenamiento originales:")
-for text, annotations in training_data:
-    print(f"Texto: '{text}', Anotacion: {annotations}")
-
-# Función para agregar variaciones
-def add_variations(training_data):
-    variations = []
-    for text, annotations in training_data:
-        # Variación en minúsculas
-        variations.append((text.lower(), {"entities": [(0, len(text), "ANIMAL")]}))
-        # Variación en mayúsculas
-        variations.append((text.upper(), {"entities": [(0, len(text), "ANIMAL")]}))
-
-    return variations
-
-# Agregar variaciones al conjunto de entrenamiento
-training_data.extend(add_variations(training_data))
-
-print("\nDatos de entrenamiento con variaciones:")
-for text, annotations in training_data:
-    print(f"Texto: '{text}', Anotacion: {annotations}")
+    nombre_cientifico = clean_text(item.get("NombreCientifico", ""))
+    nombre_comun = clean_text(item.get("NombreComun", ""))
     
-# Verificar longitudes de texto
-print("\nVerificando longitudes de las entidades:")
-for text, annotations in training_data:
-    print(f"Texto: '{text}' (Longitud: {len(text)})")
-    for start, end, label in annotations["entities"]:
-        entity_text = text[start:end]
-        print(f" - Entidad: '{entity_text}' (Etiqueta: {label})")
-        if len(entity_text) != end - start:
-            print(f"   ERROR: La longitud de la entidad no coincide con el texto.")
+    if nombre_cientifico:
+        contexts = [
+            f"Observamos un {nombre_cientifico} en su hábitat natural.",
+            f"Durante la expedición, vimos al {nombre_cientifico}.",
+            f"El {nombre_cientifico} es un animal fascinante.",
+            f"Encontramos un ejemplar de {nombre_cientifico} en el bosque.",
+            f"En el zoológico, vimos al {nombre_cientifico} descansando."
+        ]
+        for context in contexts:
+            start_idx = context.find(nombre_cientifico)
+            end_idx = start_idx + len(nombre_cientifico)
+            training_data.append((context, {"entities": [(start_idx, end_idx, LABEL)]}))
+    
+    if nombre_comun:
+        contexts = [
+            f"Observamos un {nombre_comun} en su hábitat natural.",
+            f"Durante la expedición, vimos al {nombre_comun}.",
+            f"El {nombre_comun} es un animal fascinante.",
+            f"Encontramos un ejemplar de {nombre_comun} en el bosque.",
+            f"En el zoológico, vimos al {nombre_comun} descansando."
+        ]
+        for context in contexts:
+            start_idx = context.find(nombre_comun)
+            end_idx = start_idx + len(nombre_comun)
+            training_data.append((context, {"entities": [(start_idx, end_idx, LABEL)]}))
+
+# Agregar ejemplos negativos
+negative_examples = [
+    ("Hoy fue un día soleado en la ciudad.", {"entities": []}),
+    ("Los árboles y las flores embellecen el paisaje.", {"entities": []}),
+    ("El automóvil rojo pasó rápidamente por la avenida.", {"entities": []}),
+    ("En la biblioteca encontramos muchos libros interesantes.", {"entities": []}),
+    ("La lluvia caía suavemente sobre el techo.", {"entities": []})
+]
+
+# Agregar ejemplos negativos
+training_data.extend(negative_examples)
+
+print(f"Total de ejemplos de entrenamiento mejorados: {len(training_data)}")
+
+# Ejemplos mixtos
+for item in data:
+    nombre_cientifico = clean_text(item.get("NombreCientifico", ""))
+    if nombre_cientifico:
+        context = f"En el bosque hay árboles, rocas y también vimos un {nombre_cientifico}."
+        start_idx = context.find(nombre_cientifico)
+        training_data.append((context, {"entities": [(start_idx, start_idx + len(nombre_cientifico), LABEL)]}))
+
+print(f"Total de ejemplos de entrenamiento: {len(training_data)}")
 
 # Configurar entrenamiento
 optimizer = nlp.begin_training()
-n_iter = 30  # Número de iteraciones
-batch_size = 16
+n_iter = 30
+batch_size = 8
 
 # Entrenar
+losses = {}
 with nlp.disable_pipes(*[pipe for pipe in nlp.pipe_names if pipe != "ner"]):
     for i in range(n_iter):
         random.shuffle(training_data)
-        losses = {}
         batches = minibatch(training_data, size=batch_size)
+        batch_losses = {}
+        
         for batch in batches:
             texts, annotations = zip(*batch)
             examples = [Example.from_dict(nlp.make_doc(text), ann) for text, ann in zip(texts, annotations)]
-            nlp.update(examples, drop=0.2, sgd=optimizer, losses=losses)
-        print(f"Iteración {i+1} - Pérdida: {losses}")
-
-# Verifica si ya existe el modelo (para saber si se sobrescribe)
-model_path = "./animal_ner_model"
-if os.path.exists(model_path):
-    print(" Aviso: El modelo anterior será sobrescrito.")
+            nlp.update(examples, drop=0.2, sgd=optimizer, losses=batch_losses)
+        
+        for k, v in batch_losses.items():
+            losses.setdefault(k, []).append(v)
+        
+        print(f"Iteracion {i+1}/{n_iter} - Perdida: {batch_losses}")
 
 # Guardar el modelo
+model_path = "./animal_ner_model"
+if os.path.exists(model_path):
+    print("Aviso: El modelo anterior será sobrescrito.")
 nlp.to_disk(model_path)
-print(f" Modelo guardado exitosamente en '{model_path}'")
-
-# Cargar y probar el modelo entrenado
-print("\nCargando el modelo entrenado desde disco...")
-nlp_trained = spacy.load(model_path)
-
-# Frases de prueba
-test_texts = [
-    "Allobates juanii",
-    "Panthera leo Allobates juanii de la selva.",
-    "La jirafa es un animal muy alto.",
-    "Giraffa camelopardalis es conocida por su cuello largo."
-]
-
-# Usar el modelo entrenado para reconocer entidades
-for test_text in test_texts:
-    print(f"\nProbando el texto: '{test_text}'")
-    doc = nlp_trained(test_text)
-
-    # Extraer las entidades reconocidas
-    if not doc.ents:
-        print(" - No se encontraron entidades.")
-    else:
-        for ent in doc.ents:
-            print(f" - Entidad encontrada: '{ent.text}' (Etiqueta: {ent.label_})")
-
-            # Consultar la base de datos para obtener más información
-            if ent.label_ == "ANIMAL":
-                animal_name = ent.text
-                animal_data = collection.find_one({"NombreCientifico": animal_name})  # Buscar en MongoDB por nombre científico
-                if animal_data:
-                    print(f"   Datos del animal encontrados: {animal_data}")
-                else:
-                    print(f"   No se encontraron datos adicionales para: {animal_name}")
+print(f"Modelo guardado exitosamente en '{model_path}'")
