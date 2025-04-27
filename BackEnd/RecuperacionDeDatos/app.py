@@ -42,7 +42,7 @@ def predict():
     for ent in doc.ents:
         if ent.label_ == "ANIMAL":
             # Buscar primero por NombreCientifico
-            animal_data = collection.find_one({"NombreCientifico": ent.text})
+            animal_data = collection.find_one({"NombreCientifico": {"$regex": f"^{ent.text}$", "$options": "i"}})
             if not animal_data:
                 # Buscar flexible por NombreComun
                 animal_data = collection.find_one({"NombreComun": {"$regex": f".*{ent.text}.*", "$options": "i"}})

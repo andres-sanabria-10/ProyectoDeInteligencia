@@ -54,6 +54,13 @@ for item in data:
             start_idx = context.find(nombre_cientifico)
             end_idx = start_idx + len(nombre_cientifico)
             training_data.append((context, {"entities": [(start_idx, end_idx, LABEL)]}))
+            
+            context_lower = context.lower()
+            nombre_cientifico_lower = nombre_cientifico.lower()
+            start_idx_lower = context_lower.find(nombre_cientifico_lower)
+            end_idx_lower = start_idx_lower + len(nombre_cientifico_lower)
+            training_data.append((context_lower, {"entities": [(start_idx_lower, end_idx_lower, LABEL)]}))
+
     
     if nombre_comun:
         # Separar múltiples nombres comunes por comas
@@ -71,6 +78,13 @@ for item in data:
                 start_idx = context.find(nombre)
                 end_idx = start_idx + len(nombre)
                 training_data.append((context, {"entities": [(start_idx, end_idx, LABEL)]}))
+                
+                context_lower = context.lower()
+                nombre_lower = nombre.lower()  # <- Aquí está el cambio
+                start_idx_lower = context_lower.find(nombre_lower)
+                end_idx_lower = start_idx_lower + len(nombre_lower)
+                training_data.append((context_lower, {"entities": [(start_idx_lower, end_idx_lower, LABEL)]}))
+
 
 # Agregar ejemplos negativos
 negative_examples = [
