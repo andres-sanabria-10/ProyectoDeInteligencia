@@ -1,4 +1,4 @@
-import spacy
+import spacy 
 from spacy.util import minibatch
 from spacy.training.example import Example
 import random
@@ -56,17 +56,21 @@ for item in data:
             training_data.append((context, {"entities": [(start_idx, end_idx, LABEL)]}))
     
     if nombre_comun:
-        contexts = [
-            f"Observamos un {nombre_comun} en su hábitat natural.",
-            f"Durante la expedición, vimos al {nombre_comun}.",
-            f"El {nombre_comun} es un animal fascinante.",
-            f"Encontramos un ejemplar de {nombre_comun} en el bosque.",
-            f"En el zoológico, vimos al {nombre_comun} descansando."
-        ]
-        for context in contexts:
-            start_idx = context.find(nombre_comun)
-            end_idx = start_idx + len(nombre_comun)
-            training_data.append((context, {"entities": [(start_idx, end_idx, LABEL)]}))
+        # Separar múltiples nombres comunes por comas
+        nombres_comunes = [nombre.strip() for nombre in nombre_comun.split(',')]
+
+        for nombre in nombres_comunes:
+            contexts = [
+                f"Observamos un {nombre} en su hábitat natural.",
+                f"Durante la expedición, vimos al {nombre}.",
+                f"El {nombre} es un animal fascinante.",
+                f"Encontramos un ejemplar de {nombre} en el bosque.",
+                f"En el zoológico, vimos al {nombre} descansando."
+            ]
+            for context in contexts:
+                start_idx = context.find(nombre)
+                end_idx = start_idx + len(nombre)
+                training_data.append((context, {"entities": [(start_idx, end_idx, LABEL)]}))
 
 # Agregar ejemplos negativos
 negative_examples = [
@@ -77,27 +81,15 @@ negative_examples = [
     ("La lluvia caía suavemente sobre el techo.", {"entities": []})
 ]
 
-# Agregar ejemplos negativos
 training_data.extend(negative_examples)
-
-print(f"Total de ejemplos de entrenamiento mejorados: {len(training_data)}")
-
-# Ejemplos mixtos
-for item in data:
-    nombre_cientifico = clean_text(item.get("NombreCientifico", ""))
-    if nombre_cientifico:
-        context = f"En el bosque hay árboles, rocas y también vimos un {nombre_cientifico}."
-        start_idx = context.find(nombre_cientifico)
-        training_data.append((context, {"entities": [(start_idx, start_idx + len(nombre_cientifico), LABEL)]}))
 
 print(f"Total de ejemplos de entrenamiento: {len(training_data)}")
 
-# Configurar entrenamiento
+# Entrenar el modelo
 optimizer = nlp.begin_training()
 n_iter = 30
 batch_size = 8
 
-# Entrenar
 losses = {}
 with nlp.disable_pipes(*[pipe for pipe in nlp.pipe_names if pipe != "ner"]):
     for i in range(n_iter):
@@ -113,7 +105,7 @@ with nlp.disable_pipes(*[pipe for pipe in nlp.pipe_names if pipe != "ner"]):
         for k, v in batch_losses.items():
             losses.setdefault(k, []).append(v)
         
-        print(f"Iteracion {i+1}/{n_iter} - Perdida: {batch_losses}")
+        print(f"Iteración {i+1}/{n_iter} - Pérdida: {batch_losses}")
 
 # Guardar el modelo
 model_path = "./animal_ner_model"

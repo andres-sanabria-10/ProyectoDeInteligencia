@@ -1,9 +1,8 @@
 from flask import Flask, request, jsonify
 import spacy
-from spacy.training.example import Example
 from pymongo import MongoClient
-import os
 from bson import ObjectId
+import os
 
 # Inicializar Flask
 app = Flask(__name__)
@@ -29,26 +28,26 @@ def objectid_to_str(obj):
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    # Obtener el texto enviado en el cuerpo de la solicitud
     data = request.get_json()
     text = data.get('text', '')
 
     if not text:
         return jsonify({"error": "No text provided"}), 400
-    
+
     # Procesar el texto con el modelo entrenado
     doc = nlp(text)
 
-    # Extraer las entidades y buscar información adicional en MongoDB
+    # Extraer entidades y buscar en MongoDB
     entities = []
     for ent in doc.ents:
         if ent.label_ == "ANIMAL":
+            # Buscar primero por NombreCientifico
             animal_data = collection.find_one({"NombreCientifico": ent.text})
             if not animal_data:
-                animal_data = collection.find_one({"NombreComun": ent.text})
+                # Buscar flexible por NombreComun
+                animal_data = collection.find_one({"NombreComun": {"$regex": f".*{ent.text}.*", "$options": "i"}})
 
             if animal_data:
-                # Convertir ObjectId a string
                 animal_data = objectid_to_str(animal_data)
                 entities.append({
                     "text": ent.text,
@@ -61,7 +60,7 @@ def predict():
                     "label": ent.label_,
                     "data": None
                 })
-    
+
     return jsonify({"entities": entities})
 
 if __name__ == '__main__':
