@@ -6,12 +6,35 @@ const AnimalInfoForm = () => {
   const [speciesInfo, setSpeciesInfo] = useState("")
   const [question, setQuestion] = useState("")
   const [answer, setAnswer] = useState("")
+  const [speciesData, setSpeciesData] = useState([]);
+  const [selectedAnimal, setSelectedAnimal] = useState(null);
 
-  const handleSearch = () => {
-    // Aquí puedes implementar la lógica de búsqueda
-    console.log("Buscando información del animal:", animalInfo)
-  }
+  const handleSearch = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/predict", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          text: animalInfo // lo que escribió el usuario
+        })
+      });
 
+      if (!response.ok) {
+        throw new Error("Error en la conexión con el servidor");
+      }
+
+      const data = await response.json();
+
+      // Guardar los resultados en estado para mostrarlos después
+      setSpeciesData(data.entities || []);      // Limpiar el textarea de entrada
+      setSpeciesInfo("");
+    } catch (error) {
+      console.error("Error al buscar:", error);
+      alert("No se pudo obtener información del animal.");
+    }
+  };
   const handleSubmitAnswer = () => {
     // Aquí puedes implementar la lógica para enviar la respuesta
     console.log("Pregunta:", question)
@@ -68,16 +91,54 @@ Es un ave"
         {/* Información de la especie */}
         <div className="species-info">
           <h2>Información de la especie</h2>
-          <div className="text-area-container large">
-            <textarea
-              value={speciesInfo}
-              onChange={(e) => setSpeciesInfo(e.target.value)}
-              className="species-textarea"
-            />
-            <div className="scrollbar">
-              <div className="scrollbar-thumb"></div>
+          {speciesData.length > 0 ? (
+            <div className="species-checkboxes">
+              {speciesData.map((item, index) => {
+                const animal = item.data;
+
+                if (!animal) {
+                  return (
+                    <div key={index} className="form-check">
+                      <label className="form-check-label" style={{ color: '#a00' }}>
+                        No se encontró información para "{item.text}"
+                      </label>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={animal._id} className="form-check">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id={`animal-${animal._id}`}
+                      onChange={() => setSelectedAnimal(animal)}
+                    />
+                    <label
+                      className="form-check-label"
+                      htmlFor={`animal-${animal._id}`}
+                      style={{ color: '#0c0c0c', fontWeight: 'bold' }}
+                    >
+                      {animal.NombreCientifico} ({animal._id})
+                    </label>
+                  </div>
+                );
+              })}
+
             </div>
-          </div>
+          ) : (
+            <div className="text-area-container large">
+              <textarea
+                value={selectedAnimal ? JSON.stringify(selectedAnimal, null, 2) : speciesInfo}
+                onChange={(e) => setSpeciesInfo(e.target.value)}
+                className="species-textarea"
+                placeholder="Aquí puedes ingresar información adicional..."
+              />
+              <div className="scrollbar">
+                <div className="scrollbar-thumb"></div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Preservación del ecosistema */}

@@ -2,21 +2,20 @@ from flask import Flask, request, jsonify
 import spacy
 from pymongo import MongoClient
 from bson import ObjectId
-import os
+from flask_cors import CORS  
 
-# Inicializar Flask
 app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "http://localhost:3000"}})  # Permitir solo tu frontend
 
-# Cargar el modelo entrenado de Spacy
+# Cargar modelo spaCy
 model_path = "./animal_ner_model"
 nlp = spacy.load(model_path)
 
-# Conexión a MongoDB
+# Conexión MongoDB
 client = MongoClient("mongodb+srv://andressanabria02:uL3Bgc9CCAHiOrgD@cluster0.p02ar.mongodb.net/projectInteligenceArtificial?retryWrites=true&w=majority&appName=Cluster0")
 db = client["projectIntligenceArtificial"]
 collection = db["information"]
 
-# Función para convertir ObjectId a string
 def objectid_to_str(obj):
     if isinstance(obj, ObjectId):
         return str(obj)
@@ -34,17 +33,13 @@ def predict():
     if not text:
         return jsonify({"error": "No text provided"}), 400
 
-    # Procesar el texto con el modelo entrenado
     doc = nlp(text)
-
-    # Extraer entidades y buscar en MongoDB
     entities = []
+
     for ent in doc.ents:
         if ent.label_ == "ANIMAL":
-            # Buscar primero por NombreCientifico
             animal_data = collection.find_one({"NombreCientifico": {"$regex": f"^{ent.text}$", "$options": "i"}})
             if not animal_data:
-                # Buscar flexible por NombreComun
                 animal_data = collection.find_one({"NombreComun": {"$regex": f".*{ent.text}.*", "$options": "i"}})
 
             if animal_data:
@@ -64,4 +59,4 @@ def predict():
     return jsonify({"entities": entities})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)
