@@ -15,6 +15,7 @@ const AnimalInfoForm = () => {
   const [respuestaSeleccionada, setRespuestaSeleccionada] = useState(null);
   const [resultado, setResultado] = useState(null);
   const [ultimaPreguntaId, setUltimaPreguntaId] = useState(null);
+  const [estadoAnterior, setEstadoAnterior] = useState(-1); // Para Q-learning
 
   const handleSearch = async () => {
     try {
@@ -33,24 +34,9 @@ const AnimalInfoForm = () => {
       }
 
       const data = await response.json();
-      
-      // DEBUGGING - Imprimir toda la respuesta
+
       console.log("=== RESPUESTA COMPLETA DEL SERVIDOR ===");
       console.log(data);
-      
-      // DEBUGGING - Imprimir solo las entities
-      console.log("=== ENTITIES ===");
-      console.log(data.entities);
-      
-      // DEBUGGING - Imprimir cada entity individualmente
-      if (data.entities && data.entities.length > 0) {
-        data.entities.forEach((entity, index) => {
-          console.log(`=== ENTITY ${index} ===`);
-          console.log("Entity completa:", entity);
-          console.log("Entity.data:", entity.data);
-          console.log("texto_enriquecido:", entity.texto_enriquecido);
-        });
-      }
 
       // Guardar los resultados en estado para mostrarlos después
       setSpeciesData(data.entities || []);
@@ -60,6 +46,8 @@ const AnimalInfoForm = () => {
       setPregunta(null);
       setRespuestaSeleccionada(null);
       setResultado(null);
+      setUltimaPreguntaId(null);
+      setEstadoAnterior(-1);
 
     } catch (error) {
       console.error("Error al buscar:", error);
@@ -67,15 +55,15 @@ const AnimalInfoForm = () => {
     }
   };
 
-  // Cuando cambias el animal seleccionado, traemos la pregunta
+  // Cuando cambias el animal seleccionado, traemos la primera pregunta
   useEffect(() => {
     if (selectedAnimal) {
-      obtenerPregunta(selectedAnimal.data?.NombreComun || selectedAnimal.data?.NombreCientifico);
+      obtenerPrimeraPregunta(selectedAnimal.data?.NombreComun || selectedAnimal.data?.NombreCientifico);
     }
   }, [selectedAnimal]);
 
-  // Obtiene una pregunta del backend según el nombre común del animal
-  const obtenerPregunta = async (nombreComun) => {
+  // Obtiene la PRIMERA pregunta del backend
+  const obtenerPrimeraPregunta = async (nombreComun) => {
     try {
       const res = await fetch("http://localhost:5000/pregunta", {
         method: "POST",
@@ -87,8 +75,31 @@ const AnimalInfoForm = () => {
       setRespuestaSeleccionada(null);
       setResultado(null);
       setUltimaPreguntaId(data.id);
+      setEstadoAnterior(-1); // Primera pregunta
     } catch (error) {
       console.error("Error al obtener pregunta:", error);
+      setPregunta(null);
+    }
+  };
+
+  // Obtiene la SIGUIENTE pregunta usando Q-learning
+  const obtenerSiguientePregunta = async () => {
+    try {
+      const res = await fetch("http://localhost:5000/pregunta_siguiente", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ultima_pregunta_id: ultimaPreguntaId,
+          estado_anterior: estadoAnterior
+        }),
+      });
+      const data = await res.json();
+      setPregunta(data);
+      setRespuestaSeleccionada(null);
+      setResultado(null);
+      setUltimaPreguntaId(data.id);
+    } catch (error) {
+      console.error("Error al obtener siguiente pregunta:", error);
       setPregunta(null);
     }
   };
@@ -96,7 +107,7 @@ const AnimalInfoForm = () => {
   // Envía la respuesta seleccionada para validar
   const enviarRespuesta = async () => {
     console.log("Enviando respuesta...");
- 
+
     if (pregunta && respuestaSeleccionada !== null) {
       try {
         const res = await fetch("http://localhost:5000/feedback", {
@@ -109,13 +120,16 @@ const AnimalInfoForm = () => {
         });
         const data = await res.json();
         console.log("Respuesta del servidor:", data);
-        
+
         setResultado({
           correcto: data.correcto,
           explicacion: data.explicacion,
           respuesta_correcta: data.respuesta_correcta,
         });
-        
+
+        // Actualizar estado para Q-learning
+        setEstadoAnterior(data.correcto ? 1 : 0);
+
       } catch (error) {
         console.error("Error al enviar respuesta:", error);
         setResultado(null);
@@ -129,9 +143,7 @@ const AnimalInfoForm = () => {
   const handleSelectAnimal = (entity) => {
     console.log("=== ANIMAL SELECCIONADO ===");
     console.log("Entity clickeada:", entity);
-    console.log("texto_enriquecido del entity:", entity.texto_enriquecido);
-    console.log("Entity actualmente seleccionada:", selectedAnimal);
-    
+
     // Si ya está seleccionado, deseleccionamos (toggle)
     if (selectedAnimal && selectedAnimal.data?.NombreCientifico === entity.data?.NombreCientifico) {
       console.log("Deseleccionando animal");
@@ -139,27 +151,20 @@ const AnimalInfoForm = () => {
       setPregunta(null);
       setRespuestaSeleccionada(null);
       setResultado(null);
+      setUltimaPreguntaId(null);
+      setEstadoAnterior(-1);
     } else {
       console.log("Seleccionando nueva entity");
-      setSelectedAnimal(entity);  // Ahora guardamos la entity completa
+      setSelectedAnimal(entity);
       // Limpiar estados previos
       setPregunta(null);
       setRespuestaSeleccionada(null);
       setResultado(null);
+      setUltimaPreguntaId(null);
+      setEstadoAnterior(-1);
       // Las preguntas se cargarán automáticamente por el useEffect
     }
   };
-
-  const handleSubmitAnswer = () => {
-    console.log("Pregunta:", question)
-    console.log("Respuesta:", answer)
-  }
-
-  // DEBUGGING DEL ESTADO ACTUAL
-  console.log("=== ESTADO ACTUAL ===");
-  console.log("speciesData:", speciesData);
-  console.log("selectedAnimal:", selectedAnimal);
-  console.log("selectedAnimal.texto_enriquecido:", selectedAnimal?.texto_enriquecido);
 
   return (
     <div className="animal-info-container">
@@ -168,21 +173,21 @@ const AnimalInfoForm = () => {
       </div>
 
       <div className="info-grid">
-        {/* Columna izquierda */}
+        {/* Columna izquierda - Información */}
         <div className="info-column">
           <div className="info-box">
             <h2>Información</h2>
-            <p className="info-subtitle">Ingrese el nombre comun o nombre cientifico del animal a buscar</p>
+            <p className="info-subtitle">Ingrese el nombre común o nombre científico del animal a buscar</p>
 
             <div className="text-area-container">
               <textarea
                 value={animalInfo}
                 onChange={(e) => setAnimalInfo(e.target.value)}
                 placeholder="Ejemplo:
-Gallito de Roca
-Es de color rojo y negro
-Tiene cresta
-Es un ave"
+                Gallito de Roca
+                Es de color rojo y negro
+                Tiene cresta
+                Es un ave"
                 className="info-textarea"
               />
               <div className="scrollbar">
@@ -193,185 +198,191 @@ Es un ave"
             <button className="search-button" onClick={handleSearch}>
               BUSCAR
             </button>
-          </div>
-        </div>
 
-        {/* Columna derecha */}
-        <div className="image-column">
-          <div className="image-placeholder">
-            <div className="mountain-shape"></div>
-            <div className="circle-shape"></div>
-          </div>
-        </div>
-      </div>
+            <hr className="divider" />
 
-      <hr className="divider" />
+          <div className="bottom-grid">
+            {/* Información de la especie */}
+            <div className="species-info">
+              <h2>Información de la especie</h2>
 
-      <div className="bottom-grid">
-        {/* Información de la especie */}
-        <div className="species-info">
-          <h2>Información de la especie</h2>
-
-          {speciesData.length > 0 ? (
-            speciesData.every(entity => !entity.data) ? (
-              <p style={{ color: 'red', fontWeight: 'bold' }}>
-                No se encontraron especies con la información proporcionada. Prueba con otro animal en peligro de extinción en Boyacá
-              </p>
-            ) : (
-              <div className="species-checkboxes">
-                {speciesData.map((entity, index) => {
-                  const animal = entity.data;
-
-                  if (!animal) {
-                    return (
-                      <div key={`no-data-${index}`} className="form-check">
-                        <label className="form-check-label" style={{ color: '#a00' }}>
-                          No se encontró información para "{entity.text}"
-                        </label>
-                      </div>
-                    );
-                  }
-
-                  // CLAVE ÚNICA CORREGIDA: Usamos el NombreCientifico del animal
-                  const uniqueKey = animal.NombreCientifico || `animal-${index}`;
-                  
-                  return (
-                    <div key={uniqueKey} className="form-check">
-                      <input
-                        className="form-check-input"
-                        type="checkbox"
-                        id={`animal-${uniqueKey}`}
-                        checked={selectedAnimal !== null && selectedAnimal.data?.NombreCientifico === animal.NombreCientifico}
-                        onChange={() => handleSelectAnimal(entity)}
-                      />
-                      <label
-                        className="form-check-label"
-                        htmlFor={`animal-${uniqueKey}`}
-                        style={{ color: '#0c0c0c', fontWeight: 'bold' }}
-                        onClick={() => handleSelectAnimal(entity)}
-                      >
-                        {animal.NombreComun || animal.NombreCientifico}
-                      </label>
-                    </div>
-                  );
-                })}
-              </div>
-            )
-          ) : null}
-
-{/* Modal para mostrar información del animal seleccionado */}
-          {selectedAnimal && (
-            <div className="modal-overlay" onClick={() => setSelectedAnimal(null)}>
-              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h3 className="modal-title">
-                    🐾 {selectedAnimal.data?.NombreComun || selectedAnimal.data?.NombreCientifico || "Animal"}
-                  </h3>
-                  <button 
-                    className="modal-close-btn"
-                    onClick={() => setSelectedAnimal(null)}
-                    aria-label="Cerrar modal"
-                  >
-                    ×
-                  </button>
-                </div>
-                
-                <div className="modal-body">
-                  {selectedAnimal.texto_enriquecido ? (
-                    <div className="texto-enriquecido">
-                      <ReactMarkdown>{selectedAnimal.texto_enriquecido}</ReactMarkdown>
-                    </div>
-                  ) : (
-                    <p className="no-info-text">⚠️ No hay información enriquecida disponible.</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Preservación del ecosistema */}
-        <div className="ecosystem-preservation">
-          <h2>Preservación del ecosistema</h2>
-
-          {!pregunta && <p>Selecciona un animal para cargar una pregunta...</p>}
-
-          {pregunta && (
-            <>
-              <p className="pregunta-text">{pregunta.pregunta}</p>
-
-              {/* LISTA DINÁMICA DE OPCIONES CORREGIDA */}
-              {pregunta.opciones.map((opcion, i) => (
-                <div key={`opcion-${pregunta.id}-${i}`} className="input-group">
-                  <label>
-                    <input
-                      type="radio"
-                      name={`respuesta-${pregunta.id}`} // Nombre único por pregunta
-                      value={i}
-                      checked={respuestaSeleccionada === i}
-                      onChange={() => setRespuestaSeleccionada(i)}
-                    />
-                    {opcion}
-                  </label>
-                </div>
-              ))}
-
-              <button
-                className="submit-button"
-                onClick={enviarRespuesta}
-                disabled={respuestaSeleccionada === null}
-              >
-                Enviar respuesta <span className="arrow-icon">→</span>
-              </button>
-
-              {resultado && (
-                <div
-                  className={`resultado ${resultado.correcto ? "correcto" : "incorrecto"}`}
-                  style={{
-                    backgroundColor: "white",
-                    color: "black",
-                    padding: "1rem",
-                    borderRadius: "8px",
-                  }}
-                >
-                  <p>
-                    {resultado.correcto ? (
-                      "¡Correcto!"
-                    ) : (
-                      <span style={{ fontWeight: "bold", color: "red" }}>Incorrecto</span>
-                    )}
+              {speciesData.length > 0 ? (
+                speciesData.every(entity => !entity.data) ? (
+                  <p style={{ color: 'red', fontWeight: 'bold' }}>
+                    No se encontraron especies con la información proporcionada. Prueba con otro animal en peligro de extinción en Boyacá
                   </p>
+                ) : (
+                  <div className="species-checkboxes">
+                    {speciesData.map((entity, index) => {
+                      const animal = entity.data;
 
-                  {!resultado.correcto && (
-                    <>
-                      <p>
-                        <strong>La respuesta correcta es:</strong>{" "}
-                        {resultado.respuesta_correcta
-                          ? resultado.respuesta_correcta
-                          : "No hay respuesta correcta disponible."}
-                      </p>
+                      if (!animal) {
+                        return (
+                          <div key={`no-data-${index}`} className="form-check">
+                            <label className="form-check-label" style={{ color: '#a00' }}>
+                              No se encontró información para "{entity.text}"
+                            </label>
+                          </div>
+                        );
+                      }
 
-                      <p>
-                        <strong>Explicación:</strong>{" "}
-                        {resultado.explicacion
-                          ? resultado.explicacion
-                          : "No hay explicación disponible."}
-                      </p>
-                    </>
-                  )}
+                      const uniqueKey = animal.NombreCientifico || `animal-${index}`;
 
-                  <button
-                    onClick={() => obtenerPregunta(selectedAnimal.data?.NombreComun || selectedAnimal.data?.NombreCientifico)}
-                    disabled={!selectedAnimal}
-                  >
-                    Otra pregunta
-                  </button>
+                      return (
+                        <div key={uniqueKey} className="form-check">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id={`animal-${uniqueKey}`}
+                            checked={selectedAnimal !== null && selectedAnimal.data?.NombreCientifico === animal.NombreCientifico}
+                            onChange={() => handleSelectAnimal(entity)}
+                          />
+                          <label
+                            className="form-check-label"
+                            htmlFor={`animal-${uniqueKey}`}
+                            style={{ color: '#0c0c0c', fontWeight: 'bold' }}
+                            onClick={() => handleSelectAnimal(entity)}
+                          >
+                            {animal.NombreComun || animal.NombreCientifico}
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )
+              ) : null}
+
+              {/* Modal para mostrar información del animal seleccionado */}
+              {selectedAnimal && (
+                <div className="modal-overlay" onClick={() => setSelectedAnimal(null)}>
+                  <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                      <h3 className="modal-title">
+                        🐾 {selectedAnimal.data?.NombreComun || selectedAnimal.data?.NombreCientifico || "Animal"}
+                      </h3>
+                      <button
+                        className="modal-close-btn"
+                        onClick={() => setSelectedAnimal(null)}
+                        aria-label="Cerrar modal"
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    <div className="modal-body">
+                      {selectedAnimal.texto_enriquecido ? (
+                        <div className="texto-enriquecido">
+                          <ReactMarkdown>{selectedAnimal.texto_enriquecido}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="no-info-text">⚠️ No hay información enriquecida disponible.</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
-            </>
-          )}
+            </div>
+          </div>
+          </div>
+
+          
+
+
+
+        </div>
+
+        {/* Columna derecha - Preguntas de Preservación */}
+        <div className="questions-column">
+          <div className="ecosystem-preservation">
+            <h2>🌿 Preservación del ecosistema</h2>
+
+            {!pregunta && (
+              <div className="question-card waiting-card">
+                <div className="card-body">
+                  <p className="waiting-text">🌿 Selecciona un animal para cargar una pregunta...</p>
+                </div>
+              </div>
+            )}
+
+            {pregunta && (
+              <div className="question-card">
+                <div className="question-card-header">
+                  <h3 className="question-title">🧠 Pregunta sobre conservación</h3>
+                </div>
+
+                <div className="question-card-body">
+                  <p className="pregunta-text">{pregunta.pregunta}</p>
+
+                  <div className="opciones-container">
+                    {pregunta.opciones.map((opcion, i) => (
+                      <div key={`opcion-${pregunta.id}-${i}`} className="opcion-item">
+                        <label className="opcion-label">
+                          <input
+                            type="radio"
+                            name={`respuesta-${pregunta.id}`}
+                            value={i}
+                            checked={respuestaSeleccionada === i}
+                            onChange={() => setRespuestaSeleccionada(i)}
+                            className="radio-input"
+                          />
+                          <span className="radio-custom"></span>
+                          <span className="opcion-text">{opcion}</span>
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    className="submit-answer-btn"
+                    onClick={enviarRespuesta}
+                    disabled={respuestaSeleccionada === null}
+                  >
+                    <span className="btn-text">Enviar respuesta</span>
+                    <span className="btn-icon">🚀</span>
+                  </button>
+
+                  {resultado && (
+                    <div className={`resultado-card ${resultado.correcto ? "correcto" : "incorrecto"}`}>
+                      <div className="resultado-header">
+                        <span className="resultado-icon">
+                          {resultado.correcto ? "✅" : "❌"}
+                        </span>
+                        <span className="resultado-title">
+                          {resultado.correcto ? "¡Correcto!" : "Incorrecto"}
+                        </span>
+                      </div>
+
+                      {!resultado.correcto && (
+                        <div className="resultado-details">
+                          <div className="respuesta-correcta">
+                            <strong>Respuesta correcta:</strong>
+                            <p>{resultado.respuesta_correcta || "No disponible"}</p>
+                          </div>
+
+                          <div className="explicacion">
+                            <strong>Explicación:</strong>
+                            <p>{resultado.explicacion || "No disponible"}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      <button
+                        className="otra-pregunta-btn"
+                        onClick={obtenerSiguientePregunta}
+
+                      >
+                        🔄 Otra pregunta
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+
     </div>
   );
 };
