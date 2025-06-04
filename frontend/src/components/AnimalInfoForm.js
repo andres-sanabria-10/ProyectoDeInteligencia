@@ -183,6 +183,11 @@ Es un ave"
 
 
           {speciesData.length > 0 ? (
+    speciesData.every(item => !item.data) ? (
+      <p style={{ color: 'red', fontWeight: 'bold' }}>
+      No se encontraron especies con la información proporcionada. Prueba con otro animal en peligro de extinción en Boyacá
+    </p>
+  ) : (
   <div className="species-checkboxes">
     {speciesData.map((item, index) => {
       const animal = item.data;
@@ -216,6 +221,7 @@ Es un ave"
       );
     })}
   </div>
+  )
 ) : null}
 
 
@@ -236,8 +242,16 @@ Es un ave"
     <p><strong>Características:</strong> {selectedAnimal.Caracteristicas}</p>
     <p><strong>Registros:</strong> {selectedAnimal.Registros}</p>
    
+
+   <p>Texto enriquecido raw: {JSON.stringify(selectedAnimal.texto_enriquecido)}</p>
+
     <p><strong>Texto enriquecido:</strong></p>
-    <ReactMarkdown>{selectedAnimal.texto_enriquecido}</ReactMarkdown>
+{selectedAnimal.texto_enriquecido ? (
+  <ReactMarkdown>{selectedAnimal.texto_enriquecido}</ReactMarkdown>
+) : (
+  <p style={{ fontStyle: 'italic', color: '#888' }}>No hay texto enriquecido disponible.</p>
+)}
+
 
   </div>
 )}

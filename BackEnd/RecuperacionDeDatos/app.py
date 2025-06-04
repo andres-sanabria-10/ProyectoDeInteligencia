@@ -15,14 +15,14 @@ preguntas = [
         "pregunta": "¿Dónde crees que el {ANIMAL} debería vivir para estar seguro?",
         "opciones": ["En zonas protegidas", "En zonas urbanas", "En zonas contaminadas"],
         "respuesta_correcta": 0,
-        "explicacion": "El {ANIMAL} necesita un hábitat seguro para sobrevivir.",
+        "explicacion": "Este animal necesita un hábitat seguro para sobrevivir.",
     },
     {
         "id": 2,
         "pregunta": "¿Qué harías para reducir la contaminación en el hábitat del {ANIMAL}?",
         "opciones": ["Realizar campañas de limpieza", "Ignorar el problema", "Construir fábricas cercanas"],
         "respuesta_correcta": 0,
-        "explicacion": "Reducir la contaminación ayuda a preservar la vida del {ANIMAL}.",
+        "explicacion": "Reducir la contaminación ayuda a preservar la vida de este animal.",
     },
     {
         "id": 3,
@@ -36,49 +36,49 @@ preguntas = [
         "pregunta": "¿Cuál es una acción para proteger al {ANIMAL} de la extinción?",
         "opciones": ["Crear reservas naturales", "Cazar indiscriminadamente", "Ignorar su situación"],
         "respuesta_correcta": 0,
-        "explicacion": "Las reservas naturales ofrecen un refugio seguro para la conservación del {ANIMAL}.",
+        "explicacion": "Las reservas naturales ofrecen un refugio seguro para la conservación de este animal.",
     },
     {
         "id": 5,
         "pregunta": "¿Cómo afecta la contaminación al {ANIMAL}?",
         "opciones": ["Provoca enfermedades y reduce su población", "No afecta en nada", "Mejora su entorno"],
         "respuesta_correcta": 0,
-        "explicacion": "La contaminación provoca daños en la salud del {ANIMAL} y amenaza su supervivencia.",
+        "explicacion": "La contaminación provoca daños en la salud de este animal y amenaza su supervivencia.",
     },
     {
         "id": 6,
         "pregunta": "¿Por qué es importante respetar el hábitat natural del {ANIMAL}?",
         "opciones": ["Porque es vital para su supervivencia", "Porque no tiene importancia", "Porque puede adaptarse a cualquier lugar"],
         "respuesta_correcta": 0,
-        "explicacion": "El hábitat natural provee alimento, refugio y condiciones ideales para el {ANIMAL}.",
+        "explicacion": "El hábitat natural provee alimento, refugio y condiciones ideales para este animal.",
     },
     {
         "id": 7,
         "pregunta": "¿Qué deberías hacer si encuentras un {ANIMAL} herido?",
         "opciones": ["Buscar ayuda profesional y no molestar", "Ignorar y alejarse", "Intentar cazarlo"],
         "respuesta_correcta": 0,
-        "explicacion": "Ayudar con profesionales garantiza el cuidado adecuado para la recuperación del {ANIMAL}.",
+        "explicacion": "Ayudar con profesionales garantiza el cuidado adecuado para la recuperación de este animal.",
     },
     {
         "id": 8,
         "pregunta": "¿Qué impacto tiene la deforestación en el {ANIMAL}?",
         "opciones": ["Destruye su hogar y reduce su población", "No tiene ningún impacto", "Mejora su calidad de vida"],
         "respuesta_correcta": 0,
-        "explicacion": "La deforestación elimina el hábitat natural del {ANIMAL}, poniendo en riesgo su supervivencia.",
+        "explicacion": "La deforestación elimina el hábitat natural de este animal, poniendo en riesgo su supervivencia.",
     },
     {
         "id": 9,
         "pregunta": "¿Cómo pueden las personas ayudar a proteger al {ANIMAL}?",
         "opciones": ["Apoyando programas de conservación", "Dañando su hábitat", "Cazándolo por deporte"],
         "respuesta_correcta": 0,
-        "explicacion": "Participar en programas de conservación ayuda a proteger y preservar al {ANIMAL}.",
+        "explicacion": "Participar en programas de conservación ayuda a proteger y preservar a este animal.",
     },
     {
         "id": 10,
         "pregunta": "¿Qué rol cumple el {ANIMAL} en el ecosistema?",
         "opciones": ["Mantiene el equilibrio natural", "No tiene ningún rol", "Es perjudicial para otros animales"],
         "respuesta_correcta": 0,
-        "explicacion": "El {ANIMAL} ayuda a mantener el equilibrio y la salud del ecosistema donde vive.",
+        "explicacion": "Este animal ayuda a mantener el equilibrio y la salud del ecosistema donde vive.",
     }
 ]
 
@@ -133,12 +133,17 @@ def predict():
         return jsonify({"error": "No text provided"}), 400
 
     entities = find_animals(text)
-    texto_enriquecido = enriquecer_texto(text, contexto)
+    
     if entities:
-        animal_detectado = entities[0] ["texto_enriquecido"] = texto_enriquecido
+        animal_detectado = entities[0]
+        texto_enriquecido = enriquecer_texto(text, contexto)
+        entities[0]["texto_enriquecido"] = texto_enriquecido
     else:
-         entities[0]["texto_enriquecido"] = ""
-        
+         entities.append({
+            "nombre": None,
+            "mensaje": "Lo siento, ese animal no se encuentra en nuestra base de datos.",
+            "texto_enriquecido": ""
+        })
     return jsonify({"entities": entities})
 
 
