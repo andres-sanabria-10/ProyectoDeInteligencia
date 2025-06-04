@@ -128,24 +128,51 @@ def predict():
     text = data.get('text', '')
     contexto = "Explicación clara y amigable para jóvenes y adultos interesados en aprender sobre animales."
 
-
     if not text:
         return jsonify({"error": "No text provided"}), 400
 
     entities = find_animals(text)
     
     if entities:
+        # Enriquecer CADA animal encontrado por separado
+        for i, entity in enumerate(entities):
+            if entity.get("data"):  # Solo si tiene datos del animal
+                # Usar los datos REALES del animal de la base de datos
+                animal_data = entity["data"]
+                nombre_cientifico = animal_data.get("NombreCientifico", "")
+                nombre_comun = animal_data.get("NombreComun", "")
+                
+                # Crear texto base con la información real del animal
+                texto_base = f"Información sobre {nombre_comun} ({nombre_cientifico})"
+                
+                # Pasar los datos completos del animal como contexto
+                contexto_animal = f"""
+                Nombre científico: {nombre_cientifico}
+                Nombre común: {nombre_comun}
+                Características: {animal_data.get('Caracteristicas', '')}
+                Hábitat: {animal_data.get('Habitat', '')}
+                Estado de conservación: {animal_data.get('EstadoDeConservacion', '')}
+                Amenazas: {animal_data.get('Amenazas', '')}
+                Localidad: {animal_data.get('Localidad', '')}
+                """
+                
+                # Generar texto enriquecido usando los datos reales
+                texto_enriquecido = enriquecer_texto(texto_base, contexto_animal)
+                entities[i]["texto_enriquecido"] = texto_enriquecido
+            else:
+                # Si no tiene datos, no hay texto enriquecido
+                entities[i]["texto_enriquecido"] = ""
+        
+        # Guardar el primer animal como el detectado por defecto (para compatibilidad)
         animal_detectado = entities[0]
-        texto_enriquecido = enriquecer_texto(text, contexto)
-        entities[0]["texto_enriquecido"] = texto_enriquecido
     else:
-         entities.append({
+        entities.append({
             "nombre": None,
             "mensaje": "Lo siento, ese animal no se encuentra en nuestra base de datos.",
             "texto_enriquecido": ""
         })
+    
     return jsonify({"entities": entities})
-
 
 @app.route("/pregunta", methods=["POST"])
 def get_pregunta():
