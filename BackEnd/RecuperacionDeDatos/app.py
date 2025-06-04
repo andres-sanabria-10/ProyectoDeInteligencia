@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS  
 from Entrenamiento import find_animals
 import random
+from g_integration import enriquecer_texto, generar_retroalimentacion_motivadora
+
 
 app = Flask(__name__)
 CORS(app)
@@ -118,19 +120,25 @@ def actualizar_Q(id_pregunta, estado_ant, id_opcion, recompensa):
 
 # ENDPOINTS
 
+
 @app.route('/predict', methods=['POST'])
 def predict():
     global animal_detectado
     data = request.get_json()
     text = data.get('text', '')
+    contexto = "Explicación clara y amigable para jóvenes y adultos interesados en aprender sobre animales."
+
 
     if not text:
         return jsonify({"error": "No text provided"}), 400
 
     entities = find_animals(text)
+    texto_enriquecido = enriquecer_texto(text, contexto)
     if entities:
-        animal_detectado = entities[0]
-
+        animal_detectado = entities[0] ["texto_enriquecido"] = texto_enriquecido
+    else:
+         entities[0]["texto_enriquecido"] = ""
+        
     return jsonify({"entities": entities})
 
 

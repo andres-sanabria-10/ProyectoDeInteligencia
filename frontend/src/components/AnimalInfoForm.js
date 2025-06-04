@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import "../AnimalInfoForm.css"
+import ReactMarkdown from "react-markdown";
 
 const AnimalInfoForm = () => {
   const [animalInfo, setAnimalInfo] = useState("")
@@ -25,7 +26,7 @@ const AnimalInfoForm = () => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          text: animalInfo // lo que escribió el usuario
+          text: animalInfo
         })
       });
 
@@ -36,7 +37,8 @@ const AnimalInfoForm = () => {
       const data = await response.json();
 
       // Guardar los resultados en estado para mostrarlos después
-      setSpeciesData(data.entities || []);      // Limpiar el textarea de entrada
+      setSpeciesData(data.entities || []);  
+          // Limpiar el textarea de entrada
       setSpeciesInfo("");
       setSelectedAnimal(null);
       setPregunta(null);
@@ -110,6 +112,7 @@ const AnimalInfoForm = () => {
    // Limpiar selección al cambiar animal para evitar selección múltiple
   const handleSelectAnimal = (animal) => {
     // Si ya está seleccionado, deseleccionamos (toggle)
+     console.log("handleSearch llamado con animalInfo:", animalInfo);
     if (selectedAnimal?._id === animal._id) {
       setSelectedAnimal(null);
       setPregunta(null);
@@ -215,10 +218,13 @@ Es un ave"
   </div>
 ) : null}
 
+
+
+
 {/* Mostrar detalles del animal seleccionado */}
 {selectedAnimal && (
   <div className="border rounded-lg p-5 mt-5 bg-gray-50 shadow-md">
-    <h3>{selectedAnimal.NombreComun || "Animal"}</h3>
+    <h3 className="text-xl font-bold mb-2">{selectedAnimal.NombreComun || "Animal"}</h3>
     <p><strong>Nombre Científico:</strong> {selectedAnimal.NombreCientifico}</p>
     <p><strong>Familia:</strong> {selectedAnimal.Familia}</p>
     <p><strong>Género:</strong> {selectedAnimal.Genero}</p>
@@ -229,6 +235,10 @@ Es un ave"
     <p><strong>Esfuerzos de Protección:</strong> {selectedAnimal.EsfuerzosDeProteccion}</p>
     <p><strong>Características:</strong> {selectedAnimal.Caracteristicas}</p>
     <p><strong>Registros:</strong> {selectedAnimal.Registros}</p>
+   
+    <p><strong>Texto enriquecido:</strong></p>
+    <ReactMarkdown>{selectedAnimal.texto_enriquecido}</ReactMarkdown>
+
   </div>
 )}
 
