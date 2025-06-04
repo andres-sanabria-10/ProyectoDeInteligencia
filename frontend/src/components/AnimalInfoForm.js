@@ -16,8 +16,6 @@ const AnimalInfoForm = () => {
   const [resultado, setResultado] = useState(null);
   const [ultimaPreguntaId, setUltimaPreguntaId] = useState(null);
 
-
-
   const handleSearch = async () => {
     try {
       const response = await fetch("http://localhost:5000/predict", {
@@ -35,10 +33,28 @@ const AnimalInfoForm = () => {
       }
 
       const data = await response.json();
+      
+      // DEBUGGING - Imprimir toda la respuesta
+      console.log("=== RESPUESTA COMPLETA DEL SERVIDOR ===");
+      console.log(data);
+      
+      // DEBUGGING - Imprimir solo las entities
+      console.log("=== ENTITIES ===");
+      console.log(data.entities);
+      
+      // DEBUGGING - Imprimir cada entity individualmente
+      if (data.entities && data.entities.length > 0) {
+        data.entities.forEach((entity, index) => {
+          console.log(`=== ENTITY ${index} ===`);
+          console.log("Entity completa:", entity);
+          console.log("Entity.data:", entity.data);
+          console.log("texto_enriquecido:", entity.texto_enriquecido);
+        });
+      }
 
       // Guardar los resultados en estado para mostrarlos después
-      setSpeciesData(data.entities || []);  
-          // Limpiar el textarea de entrada
+      setSpeciesData(data.entities || []);
+      // Limpiar el textarea de entrada
       setSpeciesInfo("");
       setSelectedAnimal(null);
       setPregunta(null);
@@ -51,14 +67,14 @@ const AnimalInfoForm = () => {
     }
   };
 
-// Cuando cambias el animal seleccionado, traemos la pregunta
+  // Cuando cambias el animal seleccionado, traemos la pregunta
   useEffect(() => {
     if (selectedAnimal) {
-      obtenerPregunta(selectedAnimal.NombreComun || selectedAnimal.NombreCientifico);
+      obtenerPregunta(selectedAnimal.data?.NombreComun || selectedAnimal.data?.NombreCientifico);
     }
   }, [selectedAnimal]);
 
-   // Obtiene una pregunta del backend según el nombre común del animal
+  // Obtiene una pregunta del backend según el nombre común del animal
   const obtenerPregunta = async (nombreComun) => {
     try {
       const res = await fetch("http://localhost:5000/pregunta", {
@@ -79,9 +95,9 @@ const AnimalInfoForm = () => {
 
   // Envía la respuesta seleccionada para validar
   const enviarRespuesta = async () => {
-     console.log("Enviando respuesta...");  // <- para confirmar que entra
+    console.log("Enviando respuesta...");
  
-     if (pregunta && respuestaSeleccionada !== null) {
+    if (pregunta && respuestaSeleccionada !== null) {
       try {
         const res = await fetch("http://localhost:5000/feedback", {
           method: "POST",
@@ -92,43 +108,58 @@ const AnimalInfoForm = () => {
           }),
         });
         const data = await res.json();
-        console.log("Respuesta del servidor:", data);  // <- para ver qué devuelve el backend
+        console.log("Respuesta del servidor:", data);
         
         setResultado({
-        correcto: data.correcto,
-        explicacion: data.explicacion,
-        respuesta_correcta: data.respuesta_correcta,
-      });
-
+          correcto: data.correcto,
+          explicacion: data.explicacion,
+          respuesta_correcta: data.respuesta_correcta,
+        });
         
       } catch (error) {
         console.error("Error al enviar respuesta:", error);
         setResultado(null);
       }
     } else {
-    console.warn("Pregunta o respuesta seleccionada está vacía"); // <--- AÑADE ESTO
-  }
+      console.warn("Pregunta o respuesta seleccionada está vacía");
+    }
   };
-   // Limpiar selección al cambiar animal para evitar selección múltiple
-  const handleSelectAnimal = (animal) => {
+
+  // FUNCIÓN CORREGIDA: Maneja la selección de animales con checkbox
+  const handleSelectAnimal = (entity) => {
+    console.log("=== ANIMAL SELECCIONADO ===");
+    console.log("Entity clickeada:", entity);
+    console.log("texto_enriquecido del entity:", entity.texto_enriquecido);
+    console.log("Entity actualmente seleccionada:", selectedAnimal);
+    
     // Si ya está seleccionado, deseleccionamos (toggle)
-     console.log("handleSearch llamado con animalInfo:", animalInfo);
-    if (selectedAnimal?._id === animal._id) {
+    if (selectedAnimal && selectedAnimal.data?.NombreCientifico === entity.data?.NombreCientifico) {
+      console.log("Deseleccionando animal");
       setSelectedAnimal(null);
       setPregunta(null);
       setRespuestaSeleccionada(null);
       setResultado(null);
     } else {
-      setSelectedAnimal(animal);
+      console.log("Seleccionando nueva entity");
+      setSelectedAnimal(entity);  // Ahora guardamos la entity completa
+      // Limpiar estados previos
+      setPregunta(null);
+      setRespuestaSeleccionada(null);
+      setResultado(null);
+      // Las preguntas se cargarán automáticamente por el useEffect
     }
   };
 
-
   const handleSubmitAnswer = () => {
-    // Aquí puedes implementar la lógica para enviar la respuesta
     console.log("Pregunta:", question)
     console.log("Respuesta:", answer)
   }
+
+  // DEBUGGING DEL ESTADO ACTUAL
+  console.log("=== ESTADO ACTUAL ===");
+  console.log("speciesData:", speciesData);
+  console.log("selectedAnimal:", selectedAnimal);
+  console.log("selectedAnimal.texto_enriquecido:", selectedAnimal?.texto_enriquecido);
 
   return (
     <div className="animal-info-container">
@@ -181,85 +212,85 @@ Es un ave"
         <div className="species-info">
           <h2>Información de la especie</h2>
 
-
           {speciesData.length > 0 ? (
-    speciesData.every(item => !item.data) ? (
-      <p style={{ color: 'red', fontWeight: 'bold' }}>
-      No se encontraron especies con la información proporcionada. Prueba con otro animal en peligro de extinción en Boyacá
-    </p>
-  ) : (
-  <div className="species-checkboxes">
-    {speciesData.map((item, index) => {
-      const animal = item.data;
+            speciesData.every(entity => !entity.data) ? (
+              <p style={{ color: 'red', fontWeight: 'bold' }}>
+                No se encontraron especies con la información proporcionada. Prueba con otro animal en peligro de extinción en Boyacá
+              </p>
+            ) : (
+              <div className="species-checkboxes">
+                {speciesData.map((entity, index) => {
+                  const animal = entity.data;
 
-      if (!animal) {
-        return (
-          <div key={index} className="form-check">
-            <label className="form-check-label" style={{ color: '#a00' }}>
-              No se encontró información para "{item.text}"
-            </label>
-          </div>
-        );
-      }
+                  if (!animal) {
+                    return (
+                      <div key={`no-data-${index}`} className="form-check">
+                        <label className="form-check-label" style={{ color: '#a00' }}>
+                          No se encontró información para "{entity.text}"
+                        </label>
+                      </div>
+                    );
+                  }
 
-      return (
-        <div key={animal._id} className="form-check">
-          <input
-            className="form-check-input"
-            type="checkbox"
-            id={`animal-${animal._id}`}
-            onChange={() => setSelectedAnimal(animal)}
-          />
-          <label
-            className="form-check-label"
-            htmlFor={`animal-${animal._id}`}
-            style={{ color: '#0c0c0c', fontWeight: 'bold' }}
-          >
-            {animal.NombreCientifico} ({animal._id})
-          </label>
+                  // CLAVE ÚNICA CORREGIDA: Usamos el NombreCientifico del animal
+                  const uniqueKey = animal.NombreCientifico || `animal-${index}`;
+                  
+                  return (
+                    <div key={uniqueKey} className="form-check">
+                      <input
+                        className="form-check-input"
+                        type="checkbox"
+                        id={`animal-${uniqueKey}`}
+                        checked={selectedAnimal !== null && selectedAnimal.data?.NombreCientifico === animal.NombreCientifico}
+                        onChange={() => handleSelectAnimal(entity)}
+                      />
+                      <label
+                        className="form-check-label"
+                        htmlFor={`animal-${uniqueKey}`}
+                        style={{ color: '#0c0c0c', fontWeight: 'bold' }}
+                        onClick={() => handleSelectAnimal(entity)}
+                      >
+                        {animal.NombreComun || animal.NombreCientifico}
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : null}
+
+{/* Modal para mostrar información del animal seleccionado */}
+          {selectedAnimal && (
+            <div className="modal-overlay" onClick={() => setSelectedAnimal(null)}>
+              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h3 className="modal-title">
+                    🐾 {selectedAnimal.data?.NombreComun || selectedAnimal.data?.NombreCientifico || "Animal"}
+                  </h3>
+                  <button 
+                    className="modal-close-btn"
+                    onClick={() => setSelectedAnimal(null)}
+                    aria-label="Cerrar modal"
+                  >
+                    ×
+                  </button>
+                </div>
+                
+                <div className="modal-body">
+                  {selectedAnimal.texto_enriquecido ? (
+                    <div className="texto-enriquecido">
+                      <ReactMarkdown>{selectedAnimal.texto_enriquecido}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="no-info-text">⚠️ No hay información enriquecida disponible.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      );
-    })}
-  </div>
-  )
-) : null}
 
-
-
-
-{/* Mostrar detalles del animal seleccionado */}
-{selectedAnimal && (
-  <div className="border rounded-lg p-5 mt-5 bg-gray-50 shadow-md">
-    <h3 className="text-xl font-bold mb-2">{selectedAnimal.NombreComun || "Animal"}</h3>
-    <p><strong>Nombre Científico:</strong> {selectedAnimal.NombreCientifico}</p>
-    <p><strong>Familia:</strong> {selectedAnimal.Familia}</p>
-    <p><strong>Género:</strong> {selectedAnimal.Genero}</p>
-    <p><strong>Estado de Conservación:</strong> {selectedAnimal.EstadoDeConservacion}</p>
-    <p><strong>Localidad:</strong> {selectedAnimal.Localidad}</p>
-    <p><strong>Hábitat:</strong> {selectedAnimal.Habitat}</p>
-    <p><strong>Amenazas:</strong> {selectedAnimal.Amenazas}</p>
-    <p><strong>Esfuerzos de Protección:</strong> {selectedAnimal.EsfuerzosDeProteccion}</p>
-    <p><strong>Características:</strong> {selectedAnimal.Caracteristicas}</p>
-    <p><strong>Registros:</strong> {selectedAnimal.Registros}</p>
-   
-
-   <p>Texto enriquecido raw: {JSON.stringify(selectedAnimal.texto_enriquecido)}</p>
-
-    <p><strong>Texto enriquecido:</strong></p>
-{selectedAnimal.texto_enriquecido ? (
-  <ReactMarkdown>{selectedAnimal.texto_enriquecido}</ReactMarkdown>
-) : (
-  <p style={{ fontStyle: 'italic', color: '#888' }}>No hay texto enriquecido disponible.</p>
-)}
-
-
-  </div>
-)}
-
-
-
-        </div>
-         {/* Preservación del ecosistema - NUEVA ESTRUCTURA */}
+        {/* Preservación del ecosistema */}
         <div className="ecosystem-preservation">
           <h2>Preservación del ecosistema</h2>
 
@@ -269,12 +300,13 @@ Es un ave"
             <>
               <p className="pregunta-text">{pregunta.pregunta}</p>
 
+              {/* LISTA DINÁMICA DE OPCIONES CORREGIDA */}
               {pregunta.opciones.map((opcion, i) => (
-                <div key={i} className="input-group">
+                <div key={`opcion-${pregunta.id}-${i}`} className="input-group">
                   <label>
                     <input
                       type="radio"
-                      name="respuesta"
+                      name={`respuesta-${pregunta.id}`} // Nombre único por pregunta
                       value={i}
                       checked={respuestaSeleccionada === i}
                       onChange={() => setRespuestaSeleccionada(i)}
@@ -293,52 +325,49 @@ Es un ave"
               </button>
 
               {resultado && (
-  <div
-    className={`resultado ${resultado.correcto ? "correcto" : "incorrecto"}`}
-    style={{
-      backgroundColor: "white",
-      color: "black",
-      padding: "1rem",
-      borderRadius: "8px",
-    }}
-  >
-    <p>
-      {resultado.correcto ? (
-        "¡Correcto!"
-      ) : (
-        <span style={{ fontWeight: "bold", color: "red" }}>Incorrecto</span>
-      )}
-    </p>
+                <div
+                  className={`resultado ${resultado.correcto ? "correcto" : "incorrecto"}`}
+                  style={{
+                    backgroundColor: "white",
+                    color: "black",
+                    padding: "1rem",
+                    borderRadius: "8px",
+                  }}
+                >
+                  <p>
+                    {resultado.correcto ? (
+                      "¡Correcto!"
+                    ) : (
+                      <span style={{ fontWeight: "bold", color: "red" }}>Incorrecto</span>
+                    )}
+                  </p>
 
-    {!resultado.correcto && (
-      <>
-        <p>
-          <strong>La respuesta correcta es:</strong>{" "}
-          {resultado.respuesta_correcta
-            ? resultado.respuesta_correcta
-            : "No hay respuesta correcta disponible."}
-        </p>
+                  {!resultado.correcto && (
+                    <>
+                      <p>
+                        <strong>La respuesta correcta es:</strong>{" "}
+                        {resultado.respuesta_correcta
+                          ? resultado.respuesta_correcta
+                          : "No hay respuesta correcta disponible."}
+                      </p>
 
-        <p>
-          <strong>Explicación:</strong>{" "}
-          {resultado.explicacion
-            ? resultado.explicacion
-            : "No hay explicación disponible."}
-        </p>
-      </>
-    )}
+                      <p>
+                        <strong>Explicación:</strong>{" "}
+                        {resultado.explicacion
+                          ? resultado.explicacion
+                          : "No hay explicación disponible."}
+                      </p>
+                    </>
+                  )}
 
-    <button
-      onClick={() => obtenerPregunta(selectedAnimal.NombreComun)}
-      disabled={!selectedAnimal}
-    >
-      Otra pregunta
-    </button>
-  </div>
-)}
-
-
-
+                  <button
+                    onClick={() => obtenerPregunta(selectedAnimal.data?.NombreComun || selectedAnimal.data?.NombreCientifico)}
+                    disabled={!selectedAnimal}
+                  >
+                    Otra pregunta
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -346,4 +375,5 @@ Es un ave"
     </div>
   );
 };
+
 export default AnimalInfoForm
