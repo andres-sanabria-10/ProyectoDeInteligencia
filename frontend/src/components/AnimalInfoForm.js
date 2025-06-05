@@ -17,8 +17,27 @@ const AnimalInfoForm = () => {
   const [ultimaPreguntaId, setUltimaPreguntaId] = useState(null);
   const [estadoAnterior, setEstadoAnterior] = useState(-1); // Para Q-learning
 
+  // NUEVO: Estado para detectar si el usuario pidió imagen
+  const [solicitudConImagen, setSolicitudConImagen] = useState(false);
+
+  // NUEVO: Función para detectar si el usuario solicita imagen
+  const detectarSolicitudImagen = (texto) => {
+    const patrones = [
+      "genera imagen", "generar imagen", "crea imagen", "crear imagen",
+      "muestra imagen", "mostrar imagen", "crea foto", "crear foto", 
+      "genera foto", "generar foto", "imagen", "foto", "visual",
+      "como se ve", "cómo se ve", "visualizar", "ver imagen"
+    ];
+    
+    return patrones.some(patron => texto.toLowerCase().includes(patron));
+  };
+
   const handleSearch = async () => {
     try {
+      // CORREGIDO: Detectar si el usuario pidió imagen antes de hacer la búsqueda
+      const pidioImagen = detectarSolicitudImagen(animalInfo);
+      setSolicitudConImagen(pidioImagen);
+
       const response = await fetch("http://localhost:5000/predict", {
         method: "POST",
         headers: {
@@ -37,6 +56,7 @@ const AnimalInfoForm = () => {
 
       console.log("=== RESPUESTA COMPLETA DEL SERVIDOR ===");
       console.log(data);
+      console.log("=== USUARIO PIDIÓ IMAGEN? ===", pidioImagen);
 
       // Guardar los resultados en estado para mostrarlos después
       setSpeciesData(data.entities || []);
@@ -187,7 +207,9 @@ const AnimalInfoForm = () => {
                 Gallito de Roca
                 Es de color rojo y negro
                 Tiene cresta
-                Es un ave"
+                Es un ave
+
+                Para generar imagen incluye: 'genera imagen' o 'crear foto'"
                 className="info-textarea"
               />
               <div className="scrollbar">
@@ -201,94 +223,142 @@ const AnimalInfoForm = () => {
 
             <hr className="divider" />
 
-          <div className="bottom-grid">
-            {/* Información de la especie */}
-            <div className="species-info">
-              <h2>Información de la especie</h2>
+            <div className="bottom-grid">
+              {/* Información de la especie */}
+              <div className="species-info">
+                <h2>Información de la especie</h2>
 
-              {speciesData.length > 0 ? (
-                speciesData.every(entity => !entity.data) ? (
-                  <p style={{ color: 'red', fontWeight: 'bold' }}>
-                    No se encontraron especies con la información proporcionada. Prueba con otro animal en peligro de extinción en Boyacá
-                  </p>
-                ) : (
-                  <div className="species-checkboxes">
-                    {speciesData.map((entity, index) => {
-                      const animal = entity.data;
+                {speciesData.length > 0 ? (
+                  speciesData.every(entity => !entity.data) ? (
+                    <p style={{ color: 'red', fontWeight: 'bold' }}>
+                      No se encontraron especies con la información proporcionada. Prueba con otro animal en peligro de extinción en Boyacá
+                    </p>
+                  ) : (
+                    <div className="species-checkboxes">
+                      {speciesData.map((entity, index) => {
+                        const animal = entity.data;
 
-                      if (!animal) {
+                        if (!animal) {
+                          return (
+                            <div key={`no-data-${index}`} className="form-check">
+                              <label className="form-check-label" style={{ color: '#a00' }}>
+                                No se encontró información para "{entity.text}"
+                              </label>
+                            </div>
+                          );
+                        }
+
+                        const uniqueKey = animal.NombreCientifico || `animal-${index}`;
+
                         return (
-                          <div key={`no-data-${index}`} className="form-check">
-                            <label className="form-check-label" style={{ color: '#a00' }}>
-                              No se encontró información para "{entity.text}"
+                          <div key={uniqueKey} className="form-check">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              id={`animal-${uniqueKey}`}
+                              checked={selectedAnimal !== null && selectedAnimal.data?.NombreCientifico === animal.NombreCientifico}
+                              onChange={() => handleSelectAnimal(entity)}
+                            />
+                            <label
+                              className="form-check-label"
+                              htmlFor={`animal-${uniqueKey}`}
+                              style={{ color: '#0c0c0c', fontWeight: 'bold' }}
+                              onClick={() => handleSelectAnimal(entity)}
+                            >
+                              {animal.NombreComun || animal.NombreCientifico}
                             </label>
                           </div>
                         );
-                      }
-
-                      const uniqueKey = animal.NombreCientifico || `animal-${index}`;
-
-                      return (
-                        <div key={uniqueKey} className="form-check">
-                          <input
-                            className="form-check-input"
-                            type="checkbox"
-                            id={`animal-${uniqueKey}`}
-                            checked={selectedAnimal !== null && selectedAnimal.data?.NombreCientifico === animal.NombreCientifico}
-                            onChange={() => handleSelectAnimal(entity)}
-                          />
-                          <label
-                            className="form-check-label"
-                            htmlFor={`animal-${uniqueKey}`}
-                            style={{ color: '#0c0c0c', fontWeight: 'bold' }}
-                            onClick={() => handleSelectAnimal(entity)}
-                          >
-                            {animal.NombreComun || animal.NombreCientifico}
-                          </label>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )
-              ) : null}
-
-              {/* Modal para mostrar información del animal seleccionado */}
-              {selectedAnimal && (
-                <div className="modal-overlay" onClick={() => setSelectedAnimal(null)}>
-                  <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                    <div className="modal-header">
-                      <h3 className="modal-title">
-                        🐾 {selectedAnimal.data?.NombreComun || selectedAnimal.data?.NombreCientifico || "Animal"}
-                      </h3>
-                      <button
-                        className="modal-close-btn"
-                        onClick={() => setSelectedAnimal(null)}
-                        aria-label="Cerrar modal"
-                      >
-                        ×
-                      </button>
+                      })}
                     </div>
+                  )
+                ) : null}
 
-                    <div className="modal-body">
-                      {selectedAnimal.texto_enriquecido ? (
-                        <div className="texto-enriquecido">
-                          <ReactMarkdown>{selectedAnimal.texto_enriquecido}</ReactMarkdown>
-                        </div>
-                      ) : (
-                        <p className="no-info-text">⚠️ No hay información enriquecida disponible.</p>
-                      )}
+                {/* Modal para mostrar información del animal seleccionado */}
+                {selectedAnimal && (
+                  <div className="modal-overlay" onClick={() => setSelectedAnimal(null)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                      <div className="modal-header">
+                        <h3 className="modal-title">
+                          🐾 {selectedAnimal.data?.NombreComun || selectedAnimal.data?.NombreCientifico || "Animal"}
+                        </h3>
+                        <button
+                          className="modal-close-btn"
+                          onClick={() => setSelectedAnimal(null)}
+                          aria-label="Cerrar modal"
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      <div className="modal-body">
+                        {/* CORREGIDO: BOTÓN DE DESCARGA SOLO SI SE SOLICITÓ IMAGEN */}
+                        {solicitudConImagen && selectedAnimal.imagen && selectedAnimal.imagen.success && (
+                          <div className="imagen-download-section">
+                            <p>🖼️ Imagen generada exitosamente</p>
+                            <button
+                              className="download-imagen-btn"
+                              onClick={async () => {
+                                try {
+                                  const response = await fetch(`http://localhost:5000/imagen/${selectedAnimal.imagen.filename}`);
+                                  const blob = await response.blob();
+
+                                  const url = window.URL.createObjectURL(blob);
+                                  const link = document.createElement('a');
+                                  link.href = url;
+                                  link.download = selectedAnimal.imagen.filename;
+                                  link.click();
+                                  window.URL.revokeObjectURL(url);
+                                } catch (error) {
+                                  console.error('Error al descargar:', error);
+                                  alert('Error al descargar la imagen');
+                                }
+                              }}
+                              style={{
+                                backgroundColor: '#4CAF50',
+                                color: 'white',
+                                padding: '10px 20px',
+                                border: 'none',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                                marginBottom: '20px'
+                              }}
+                            >
+                              📥 Descargar imagen del {selectedAnimal.data?.NombreComun}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* NUEVO: Mensaje informativo si no se pidió imagen pero se generó */}
+                        {!solicitudConImagen && selectedAnimal.imagen && selectedAnimal.imagen.success && (
+                          <div className="imagen-info-section" style={{ 
+                            backgroundColor: '#e3f2fd', 
+                            padding: '10px', 
+                            borderRadius: '5px', 
+                            marginBottom: '15px',
+                            border: '1px solid #2196F3'
+                          }}>
+                            <p style={{ margin: 0, color: '#1976D2' }}>
+                              💡 <strong>Consejo:</strong> Para ver y descargar imágenes del animal, incluye "genera imagen" o "crear foto" en tu búsqueda.
+                            </p>
+                          </div>
+                        )}
+
+                        {/* TEXTO ENRIQUECIDO */}
+                        {selectedAnimal.texto_enriquecido ? (
+                          <div className="texto-enriquecido">
+                            <ReactMarkdown>{selectedAnimal.texto_enriquecido}</ReactMarkdown>
+                          </div>
+                        ) : (
+                          <p className="no-info-text">⚠️ No hay información enriquecida disponible.</p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
-          </div>
-
-          
-
-
-
         </div>
 
         {/* Columna derecha - Preguntas de Preservación */}
@@ -369,7 +439,6 @@ const AnimalInfoForm = () => {
                       <button
                         className="otra-pregunta-btn"
                         onClick={obtenerSiguientePregunta}
-
                       >
                         🔄 Otra pregunta
                       </button>
@@ -381,8 +450,6 @@ const AnimalInfoForm = () => {
           </div>
         </div>
       </div>
-
-
     </div>
   );
 };

@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS  
 from Entrenamiento import find_animals
 import random
@@ -261,58 +261,6 @@ def actualizar_Q(id_pregunta, estado_ant, id_opcion, recompensa):
 # ENDPOINTS
 
 
-@app.route('/predict', methods=['POST'])
-def predict():
-    global animal_detectado
-    data = request.get_json()
-    text = data.get('text', '')
-    contexto = "Explicación clara y amigable para jóvenes y adultos interesados en aprender sobre animales."
-
-    if not text:
-        return jsonify({"error": "No text provided"}), 400
-
-    entities = find_animals(text)
-    
-    if entities:
-        # Enriquecer CADA animal encontrado por separado
-        for i, entity in enumerate(entities):
-            if entity.get("data"):  # Solo si tiene datos del animal
-                # Usar los datos REALES del animal de la base de datos
-                animal_data = entity["data"]
-                nombre_cientifico = animal_data.get("NombreCientifico", "")
-                nombre_comun = animal_data.get("NombreComun", "")
-                
-                # Crear texto base con la información real del animal
-                texto_base = f"Información sobre {nombre_comun} ({nombre_cientifico})"
-                
-                # Pasar los datos completos del animal como contexto
-                contexto_animal = f"""
-                Nombre científico: {nombre_cientifico}
-                Nombre común: {nombre_comun}
-                Características: {animal_data.get('Caracteristicas', '')}
-                Hábitat: {animal_data.get('Habitat', '')}
-                Estado de conservación: {animal_data.get('EstadoDeConservacion', '')}
-                Amenazas: {animal_data.get('Amenazas', '')}
-                Localidad: {animal_data.get('Localidad', '')}
-                """
-                
-                # Generar texto enriquecido usando los datos reales
-                texto_enriquecido = enriquecer_texto(texto_base, contexto_animal)
-                entities[i]["texto_enriquecido"] = texto_enriquecido
-            else:
-                # Si no tiene datos, no hay texto enriquecido
-                entities[i]["texto_enriquecido"] = ""
-        
-        # Guardar el primer animal como el detectado por defecto (para compatibilidad)
-        animal_detectado = entities[0]
-    else:
-        entities.append({
-            "nombre": None,
-            "mensaje": "Lo siento, ese animal no se encuentra en nuestra base de datos.",
-            "texto_enriquecido": ""
-        })
-    
-    return jsonify({"entities": entities})
 
 @app.route("/pregunta", methods=["POST"])
 def get_pregunta():
@@ -432,5 +380,196 @@ def get_tabla_q():
     return jsonify(tabla_serializada)
 
 
+
+import requests
+import os
+from datetime import datetime
+
+# Patrones para detectar intenciones
+PATRONES_IMAGEN = [
+    "genera imagen", "generar imagen", "crea imagen", "crear imagen",
+    "muestra imagen", "mostrar imagen", "crea foto", "crear foto",
+    "genera foto", "generar foto", "imagen", "foto", "visual",
+    "como se ve", "cómo se ve", "visualizar", "ver imagen"
+]
+
+PATRONES_TEXTO = [
+    "información", "informacion", "info", "datos", "características",
+    "caracteristicas", "detalles", "descripción", "descripcion",
+    "quiero información", "quiero informacion", "dame información",
+    "dame informacion", "explica", "cuéntame", "cuentame"
+]
+
+def detectar_intencion(texto):
+    """
+    Detecta si el usuario quiere texto, imagen o ambos
+    Returns: 'texto', 'imagen', 'ambos'
+    """
+    texto_lower = texto.lower()
+    
+    quiere_imagen = any(patron in texto_lower for patron in PATRONES_IMAGEN)
+    quiere_texto = any(patron in texto_lower for patron in PATRONES_TEXTO)
+    
+    if quiere_imagen and quiere_texto:
+        return 'ambos'
+    elif quiere_imagen:
+        return 'imagen'
+    elif quiere_texto:
+        return 'texto'
+    else:
+        # Por defecto, si no se especifica, dar información
+        return 'texto'
+
+def generar_imagen_animal(animal_data, nombre_comun):
+    """
+    Genera imagen del animal usando Stability AI
+    """
+    try:
+        # Construir prompt basado en los datos del animal
+        caracteristicas = animal_data.get('Caracteristicas', '')
+        habitat = animal_data.get('Habitat', '')
+        
+        prompt = f"""
+        A detailed, photorealistic image of {nombre_comun}, a species from Colombia. 
+        {caracteristicas if caracteristicas else ''}
+        Natural habitat: {habitat if habitat else 'Colombian biodiversity'}
+        High quality, National Geographic style, natural lighting, 
+        wildlife photography, detailed textures, vibrant colors
+        """
+        
+        response = requests.post(
+            "https://api.stability.ai/v2beta/stable-image/generate/ultra",
+            headers={
+                "authorization": "Bearer sk-DFLxApGPeGMlMm4FSDiyloIEFxMUuXuLcbHaZdkKtizllwka",
+                "accept": "image/*"
+            },
+            files={"none": ''},
+            data={
+                "prompt": prompt.strip(),
+                "output_format": "webp",
+            },
+        )
+        
+        if response.status_code == 200:
+            # Generar nombre único para la imagen
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{nombre_comun.replace(' ', '_')}_{timestamp}.webp"
+            
+            # Guardar imagen
+            with open(filename, 'wb') as file:
+                file.write(response.content)
+            
+            return {
+                "success": True,
+                "filename": filename,
+                "message": "Imagen generada exitosamente"
+            }
+        else:
+            return {
+                "success": False,
+                "error": "Error al generar imagen",
+                "details": response.text
+            }
+            
+    except Exception as e:
+        return {
+            "success": False,
+            "error": "Error en la generación de imagen",
+            "details": str(e)
+        }
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    global animal_detectado
+    data = request.get_json()
+    text = data.get('text', '')
+    
+    if not text:
+        return jsonify({"error": "No text provided"}), 400
+    
+    # Detectar intención del usuario
+    intencion = detectar_intencion(text)
+    
+    # Detectar animales en el texto
+    entities = find_animals(text)
+    
+    response_data = {
+        "intencion": intencion,
+        "entities": []
+    }
+    
+    if entities:
+        for i, entity in enumerate(entities):
+            entity_response = {
+                "nombre": entity.get("text", ""),
+                "label": entity.get("label", ""),
+                "data": entity.get("data", {}),
+                "texto_enriquecido": "",
+                "imagen": None
+            }
+            
+            if entity.get("data"):
+                animal_data = entity["data"]
+                nombre_cientifico = animal_data.get("NombreCientifico", "")
+                nombre_comun = animal_data.get("NombreComun", "")
+                
+                # GENERAR TEXTO si se requiere
+                if intencion in ['texto', 'ambos']:
+                    texto_base = f"Información sobre {nombre_comun} ({nombre_cientifico})"
+                    contexto_animal = f"""
+                    Nombre científico: {nombre_cientifico}
+                    Nombre común: {nombre_comun}
+                    Características: {animal_data.get('Caracteristicas', '')}
+                    Hábitat: {animal_data.get('Habitat', '')}
+                    Estado de conservación: {animal_data.get('EstadoDeConservacion', '')}
+                    Amenazas: {animal_data.get('Amenazas', '')}
+                    Localidad: {animal_data.get('Localidad', '')}
+                    """
+                    entity_response["texto_enriquecido"] = enriquecer_texto(texto_base, contexto_animal)
+                
+                # GENERAR IMAGEN si se requiere
+                if intencion in ['imagen', 'ambos']:
+                    imagen_result = generar_imagen_animal(animal_data, nombre_comun)
+                    entity_response["imagen"] = imagen_result
+            
+            response_data["entities"].append(entity_response)
+        
+        # Guardar el primer animal detectado para compatibilidad
+        animal_detectado = entities[0]
+    else:
+        response_data["entities"].append({
+            "nombre": None,
+            "mensaje": "Lo siento, ese animal no se encuentra en nuestra base de datos.",
+            "texto_enriquecido": "",
+            "imagen": None
+        })
+    
+    return jsonify(response_data)
+
+
+@app.route('/imagen/<filename>')
+def get_imagen(filename):
+    """
+    Endpoint para servir las imágenes generadas
+    """
+    try:
+        # Verificar que el archivo existe
+        if os.path.exists(filename):
+            return send_file(filename, mimetype='image/webp')
+        else:
+            return jsonify({"error": "Imagen no encontrada"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
+
+
+
+
+
+
