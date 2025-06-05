@@ -13,72 +13,212 @@ preguntas = [
     {
         "id": 1,
         "pregunta": "¿Dónde crees que el {ANIMAL} debería vivir para estar seguro?",
-        "opciones": ["En zonas protegidas", "En zonas urbanas", "En zonas contaminadas"],
+        "opciones": [
+            "En zonas protegidas", 
+            "En zonas urbanas", 
+            "En zonas contaminadas"],
         "respuesta_correcta": 0,
         "explicacion": "Este animal necesita un hábitat seguro para sobrevivir.",
     },
     {
         "id": 2,
         "pregunta": "¿Qué harías para reducir la contaminación en el hábitat del {ANIMAL}?",
-        "opciones": ["Realizar campañas de limpieza", "Ignorar el problema", "Construir fábricas cercanas"],
-        "respuesta_correcta": 0,
+        "opciones": [
+            "Ignorar el problema", 
+            "Realizar campañas de limpieza", 
+            "Construir fábricas cercanas"],
+        "respuesta_correcta": 1,
         "explicacion": "Reducir la contaminación ayuda a preservar la vida de este animal.",
     },
     {
         "id": 3,
         "pregunta": "¿Por qué es importante conservar al {ANIMAL}?",
-        "opciones": ["Porque es parte del ecosistema", "Porque no tiene importancia", "Porque molesta"],
+        "opciones": [
+            "Porque es parte del ecosistema y es un ser vivo que contribuye al ciclo de vida", 
+            "Porque no tiene importancia en el ecosistema",
+            "No se, no respondo"],
         "respuesta_correcta": 0,
         "explicacion": "Cada especie cumple un rol fundamental en el ecosistema.",
     },
     {
         "id": 4,
         "pregunta": "¿Cuál es una acción para proteger al {ANIMAL} de la extinción?",
-        "opciones": ["Crear reservas naturales", "Cazar indiscriminadamente", "Ignorar su situación"],
-        "respuesta_correcta": 0,
+        "opciones": [
+            "Cazar indiscriminadamente", 
+            "Ignorar su situación",
+            "Crear reservas naturales"],
+        "respuesta_correcta": 2,
         "explicacion": "Las reservas naturales ofrecen un refugio seguro para la conservación de este animal.",
     },
     {
         "id": 5,
         "pregunta": "¿Cómo afecta la contaminación al {ANIMAL}?",
-        "opciones": ["Provoca enfermedades y reduce su población", "No afecta en nada", "Mejora su entorno"],
+        "opciones": [
+            "Provoca enfermedades y reduce su población", 
+            "No afecta en nada", 
+            "Mejora su entorno"],
         "respuesta_correcta": 0,
         "explicacion": "La contaminación provoca daños en la salud de este animal y amenaza su supervivencia.",
     },
     {
         "id": 6,
         "pregunta": "¿Por qué es importante respetar el hábitat natural del {ANIMAL}?",
-        "opciones": ["Porque es vital para su supervivencia", "Porque no tiene importancia", "Porque puede adaptarse a cualquier lugar"],
-        "respuesta_correcta": 0,
+        "opciones": [
+            "No es importante respetar el hábitat del animal ", 
+            "Porque puede adaptarse a cualquier lugar",
+            "Es vital para su supervivencia",],
+        "respuesta_correcta": 2,
         "explicacion": "El hábitat natural provee alimento, refugio y condiciones ideales para este animal.",
     },
     {
         "id": 7,
         "pregunta": "¿Qué deberías hacer si encuentras un {ANIMAL} herido?",
-        "opciones": ["Buscar ayuda profesional y no molestar", "Ignorar y alejarse", "Intentar cazarlo"],
+        "opciones": [
+            "Buscar ayuda profesional y no molestar al animal", 
+            "Ignorar y alejarse",
+            "Intentar cazarlo"],
         "respuesta_correcta": 0,
         "explicacion": "Ayudar con profesionales garantiza el cuidado adecuado para la recuperación de este animal.",
     },
     {
         "id": 8,
         "pregunta": "¿Qué impacto tiene la deforestación en el {ANIMAL}?",
-        "opciones": ["Destruye su hogar y reduce su población", "No tiene ningún impacto", "Mejora su calidad de vida"],
-        "respuesta_correcta": 0,
+        "opciones": [
+            "No tiene ningún impacto", 
+            "Destruye su hogar y reduce su población",
+            "Mejora su calidad de vida"],
+        "respuesta_correcta": 1,
         "explicacion": "La deforestación elimina el hábitat natural de este animal, poniendo en riesgo su supervivencia.",
     },
     {
         "id": 9,
         "pregunta": "¿Cómo pueden las personas ayudar a proteger al {ANIMAL}?",
-        "opciones": ["Apoyando programas de conservación", "Dañando su hábitat", "Cazándolo por deporte"],
+        "opciones": [
+            "Apoyando programas de conservación", 
+            "Dañando su hábitat", 
+            "Cazándolo por deporte"],
         "respuesta_correcta": 0,
         "explicacion": "Participar en programas de conservación ayuda a proteger y preservar a este animal.",
     },
     {
         "id": 10,
         "pregunta": "¿Qué rol cumple el {ANIMAL} en el ecosistema?",
-        "opciones": ["Mantiene el equilibrio natural", "No tiene ningún rol", "Es perjudicial para otros animales"],
+        "opciones": [
+            "Mantiene el equilibrio natural", 
+            "No tiene ningún rol", 
+            "Es perjudicial para otros animales"],
         "respuesta_correcta": 0,
         "explicacion": "Este animal ayuda a mantener el equilibrio y la salud del ecosistema donde vive.",
+    },
+    {
+        "id": 11,
+        "pregunta": "Si encuentras un área donde un {ANIMAL} vive pero está siendo afectada por basura, ¿qué harías?",
+        "opciones": [
+            "Ignorar el problema porque no es tu responsabilidad",
+            "Usar esa área para construir un parque temático",
+            "Organizar una limpieza comunitaria",
+        ],
+        "respuesta_correcta": 2,
+        "explicacion": "Mantener limpio el hábitat ayuda a preservar las condiciones necesarias para la vida del animal.",
+    },
+    {
+        "id": 12,
+        "pregunta": "¿Cómo puedes ayudar a que un ecosistema se recupere después de un incendio forestal?",
+        "opciones": [
+            "Plantando árboles de especies exóticas sin control",
+            "Apoyando la reforestación con especies nativas",
+            "Dejando que la naturaleza haga todo sin intervención"
+        ],
+        "respuesta_correcta": 1,
+        "explicacion": "La reforestación con especies nativas favorece la recuperación natural y el hábitat de los animales.",
+    },
+    {
+        "id": 13,
+        "pregunta": "¿Qué harías si ves a personas cazando ilegalmente a un {ANIMAL} en peligro de extinción?",
+        "opciones": [
+            "Reportar a las autoridades ambientales",
+            "Unirse a la caza para no quedarse atrás",
+            "Ignorar para evitar problemas"
+        ],
+        "respuesta_correcta": 0,
+        "explicacion": "Reportar la caza ilegal ayuda a proteger a las especies en riesgo y preservar el ecosistema.",
+    },
+    {
+        "id": 14,
+        "pregunta": "¿Cuál es una medida efectiva para evitar que especies en peligro se extingan?",
+        "opciones": [
+            "Construir más carreteras en zonas de hábitat natural",
+            "Crear corredores biológicos entre áreas protegidas",
+            "Permitir la caza regulada sin supervisión"
+        ],
+        "respuesta_correcta": 1,
+        "explicacion": "Los corredores biológicos permiten el movimiento y reproducción segura de las especies.",
+    },
+    {
+        "id": 15,
+        "pregunta": "Si un río en el hábitat del {ANIMAL} está contaminado, ¿qué acciones serían las mejores para proteger a la fauna?",
+        "opciones": [
+            "Impulsar programas para reducir vertidos contaminantes",
+            "Aumentar el uso de pesticidas para eliminar plagas",
+            "No hacer nada porque el río se limpia solo"
+        ],
+        "respuesta_correcta": 0,
+        "explicacion": "Reducir la contaminación del agua es vital para la salud del ecosistema y de las especies que dependen de él.",
+    },
+    {
+        "id": 16,
+        "pregunta": "¿Por qué es importante que las comunidades locales participen en la conservación del {ANIMAL}?",
+        "opciones": [
+            "Porque solo los científicos pueden tomar decisiones",
+            "Porque su participación garantiza el éxito de las acciones conservacionistas",
+            "Porque no afecta a las comunidades"
+        ],
+        "respuesta_correcta": 1,
+        "explicacion": "Las comunidades locales conocen el territorio y pueden apoyar activamente la conservación.",
+    },
+    {
+        "id": 17,
+        "pregunta": "Si una planta invasora amenaza el hábitat del {ANIMAL}, ¿qué deberías hacer?",
+        "opciones": [
+            "Plantar más de esa planta invasora para aprovecharla",
+            "No hacer nada porque no afecta a largo plazo",
+            "Participar en programas para eliminar la planta invasora",
+        ],
+        "respuesta_correcta": 2,
+        "explicacion": "Eliminar especies invasoras ayuda a restaurar el equilibrio natural del ecosistema.",
+    },
+    {
+        "id": 18,
+        "pregunta": "¿Qué impacto tiene el cambio climático en el {ANIMAL} y su ecosistema?",
+        "opciones": [
+            "Provoca cambios en su hábitat que pueden reducir su supervivencia",
+            "No tiene ningún impacto significativo",
+            "Mejora las condiciones del hábitat"
+        ],
+        "respuesta_correcta": 0,
+        "explicacion": "El cambio climático altera temperaturas y disponibilidad de recursos, afectando la vida de muchas especies.",
+    },
+    {
+        "id": 19,
+        "pregunta": "¿Qué harías para fomentar la educación ambiental sobre la conservación del {ANIMAL}?",
+        "opciones": [
+            "Ignorar el tema porque es aburrido",
+            "Organizar talleres y charlas en escuelas y comunidades",
+            "Promover información falsa para evitar preocupaciones"
+        ],
+        "respuesta_correcta": 1,
+        "explicacion": "La educación ambiental sensibiliza y motiva a las personas a cuidar el medio ambiente y sus especies.",
+    },
+    {
+        "id": 20,
+        "pregunta": "Si un proyecto de desarrollo amenaza un ecosistema donde vive el {ANIMAL}, ¿qué deberías hacer?",
+        "opciones": [
+            "Promover evaluaciones de impacto ambiental y buscar alternativas",
+            "Apoyar el proyecto sin importar las consecuencias",
+            "Ignorar el problema porque no te afecta"
+        ],
+        "respuesta_correcta": 0,
+        "explicacion": "Las evaluaciones ambientales buscan minimizar daños y proteger la biodiversidad.",
     }
 ]
 
