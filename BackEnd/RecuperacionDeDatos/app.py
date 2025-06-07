@@ -318,7 +318,7 @@ def traducir_caracteristicas(caracteristicas):
 
 def generar_imagen_animal(animal_data, nombre_comun):
     """
-    Genera imagen del animal usando solo características traducidas al inglés
+    Genera una sola imagen del animal usando solo características traducidas al inglés
     """
     try:
         # Extraer solo las características de la base de datos
@@ -345,7 +345,7 @@ def generar_imagen_animal(animal_data, nombre_comun):
         response = requests.post(
             "https://api.stability.ai/v2beta/stable-image/generate/ultra",
             headers={
-                "authorization": "Bearer sk-pluP2ZYUujkvbLbXPfKcrveijSRbIZU8l1WYd82qb664aTUm",
+                "authorization": "Bearer sk-1p6ttc3RMsqLY1rtiFVuJd2yBRn0X7GsLSXVI4t0RG37UBR9",
                 "accept": "image/*"
             },
             files={"none": ''},
@@ -555,8 +555,11 @@ def predict():
                 # GENERAR IMAGEN si se requiere
                 if intencion in ['imagen', 'ambos']:
                     imagen_result = generar_imagen_animal(animal_data, nombre_comun)
+                    
+                    
                     entity_response["imagen"] = imagen_result
             
+           
             response_data["entities"].append(entity_response)
         
         # Guardar el primer animal detectado para compatibilidad
