@@ -418,7 +418,7 @@ const AnimalInfoForm = () => {
                           {resultado.correcto ? "✅" : "❌"}
                         </span>
                         <span className="resultado-title">
-                          {resultado.correcto ? "¡Correcto!" : "Incorrecto"}
+                          {resultado.correcto ? "¡Correcto!, Felicitaciones" : "Incorrecto"}
                         </span>
                       </div>
 
@@ -426,6 +426,7 @@ const AnimalInfoForm = () => {
                         <div className="resultado-details">
                           <div className="respuesta-correcta">
                             <strong>Respuesta correcta:</strong>
+                            
                             <p>{resultado.respuesta_correcta || "No disponible"}</p>
                           </div>
 

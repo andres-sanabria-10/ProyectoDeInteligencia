@@ -3,16 +3,22 @@ from flask_cors import CORS
 from Entrenamiento import find_animals
 import random
 from g_integration import enriquecer_texto, generar_retroalimentacion_motivadora
-
+import requests
+import os
+from datetime import datetime
+from googletrans import Translator
 
 app = Flask(__name__)
 CORS(app)
+
+# Inicializar traductor
+translator = Translator()
 
 # Preguntas
 preguntas = [
     {
         "id": 1,
-        "pregunta": "¿Dónde crees que el {ANIMAL} debería vivir para estar seguro?",
+        "pregunta": "¿Dónde crees que el/la {ANIMAL} debería vivir para estar seguro?",
         "opciones": [
             "En zonas protegidas", 
             "En zonas urbanas", 
@@ -22,7 +28,7 @@ preguntas = [
     },
     {
         "id": 2,
-        "pregunta": "¿Qué harías para reducir la contaminación en el hábitat del {ANIMAL}?",
+        "pregunta": "¿Qué harías para reducir la contaminación en el hábitat del/ de la {ANIMAL}?",
         "opciones": [
             "Ignorar el problema", 
             "Realizar campañas de limpieza", 
@@ -32,7 +38,7 @@ preguntas = [
     },
     {
         "id": 3,
-        "pregunta": "¿Por qué es importante conservar al {ANIMAL}?",
+        "pregunta": "¿Por qué es importante conservar al/el {ANIMAL}?",
         "opciones": [
             "Porque es parte del ecosistema y es un ser vivo que contribuye al ciclo de vida", 
             "Porque no tiene importancia en el ecosistema",
@@ -42,7 +48,7 @@ preguntas = [
     },
     {
         "id": 4,
-        "pregunta": "¿Cuál es una acción para proteger al {ANIMAL} de la extinción?",
+        "pregunta": "¿Cuál es una acción para proteger a la/el {ANIMAL} de la extinción?",
         "opciones": [
             "Cazar indiscriminadamente", 
             "Ignorar su situación",
@@ -258,9 +264,129 @@ def actualizar_Q(id_pregunta, estado_ant, id_opcion, recompensa):
     old_value = Q.get((id_pregunta, estado_ant, id_opcion), 0)
     Q[(id_pregunta, estado_ant, id_opcion)] = old_value + alpha * (recompensa - old_value)
 
+# Patrones para detectar intenciones
+PATRONES_IMAGEN = [
+    "genera imagen", "generar imagen", "crea imagen", "crear imagen",
+    "muestra imagen", "mostrar imagen", "crea foto", "crear foto",
+    "genera foto", "generar foto", "imagen", "foto", "visual",
+    "como se ve", "cómo se ve", "visualizar", "ver imagen"
+]
+
+PATRONES_TEXTO = [
+    "información", "informacion", "info", "datos", "características",
+    "caracteristicas", "detalles", "descripción", "descripcion",
+    "quiero información", "quiero informacion", "dame información",
+    "dame informacion", "explica", "cuéntame", "cuentame"
+]
+
+def detectar_intencion(texto):
+    """
+    Detecta si el usuario quiere texto, imagen o ambos
+    Returns: 'texto', 'imagen', 'ambos'
+    """
+    texto_lower = texto.lower()
+    
+    quiere_imagen = any(patron in texto_lower for patron in PATRONES_IMAGEN)
+    quiere_texto = any(patron in texto_lower for patron in PATRONES_TEXTO)
+    
+    if quiere_imagen and quiere_texto:
+        return 'ambos'
+    elif quiere_imagen:
+        return 'imagen'
+    elif quiere_texto:
+        return 'texto'
+    else:
+        # Por defecto, si no se especifica, dar información
+        return 'texto'
+
+def traducir_caracteristicas(caracteristicas):
+    """
+    Función para traducir las características del español al inglés usando googletrans
+    """
+    try:
+        if not caracteristicas or caracteristicas.strip() == "":
+            return ""
+        
+        # Traducir al inglés
+        traduccion = translator.translate(caracteristicas, src='es', dest='en')
+        return traduccion.text
+    
+    except Exception as e:
+        print(f"Error en traducción: {e}")
+        # Si falla la traducción, devolver el texto original
+        return caracteristicas
+
+def generar_imagen_animal(animal_data, nombre_comun):
+    """
+    Genera imagen del animal usando solo características traducidas al inglés
+    """
+    try:
+        # Extraer solo las características de la base de datos
+        caracteristicas_es = animal_data.get('Caracteristicas', '')
+        
+        if not caracteristicas_es:
+            return {
+                "success": False,
+                "error": "No hay características disponibles para este animal"
+            }
+        
+        # Traducir características al inglés
+        caracteristicas_en = traducir_caracteristicas(caracteristicas_es)
+        
+        # Construir prompt enfocado en características físicas traducidas
+        prompt = f"""
+        A detailed, photorealistic image of {nombre_comun}, a species from Colombia.
+        Physical characteristics: {caracteristicas_en}
+        Natural habitat setting.
+        High quality, National Geographic style, natural lighting, 
+        wildlife photography, detailed textures, vibrant colors
+        """
+        
+        response = requests.post(
+            "https://api.stability.ai/v2beta/stable-image/generate/ultra",
+            headers={
+                "authorization": "Bearer sk-pluP2ZYUujkvbLbXPfKcrveijSRbIZU8l1WYd82qb664aTUm",
+                "accept": "image/*"
+            },
+            files={"none": ''},
+            data={
+                "prompt": prompt.strip(),
+                "output_format": "webp",
+            },
+        )
+        
+        if response.status_code == 200:
+            # Generar nombre único para la imagen
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{nombre_comun.replace(' ', '_')}_{timestamp}.webp"
+            
+            # Guardar imagen
+            with open(filename, 'wb') as file:
+                file.write(response.content)
+            
+            return {
+                "success": True,
+                "filename": filename,
+                "message": "Imagen generada exitosamente",
+                "prompt_usado": prompt.strip(),  # Para debug
+                "caracteristicas_originales": caracteristicas_es,
+                "caracteristicas_traducidas": caracteristicas_en
+            }
+        else:
+            return {
+                "success": False,
+                "error": "Error al generar imagen",
+                "details": response.text
+            }
+            
+    except Exception as e:
+        return {
+            "success": False,
+            "error": "Error en la generación de imagen",
+            "details": str(e)
+        }
+
 # ENDPOINTS
-
-
 
 @app.route("/pregunta", methods=["POST"])
 def get_pregunta():
@@ -280,7 +406,6 @@ def get_pregunta():
         "opciones": opciones_texto,
         "explicacion": explicacion_texto
     })
-
 
 @app.route("/pregunta_siguiente", methods=["POST"])
 def pregunta_siguiente():
@@ -366,7 +491,6 @@ def feedback():
                 "respuesta_correcta": pregunta["opciones"][pregunta["respuesta_correcta"]] + ". "
             })
 
-
 @app.route("/tabla_q", methods=["GET"])
 def get_tabla_q():
     tabla_serializada = {}
@@ -378,105 +502,6 @@ def get_tabla_q():
             key_str = str(clave)
         tabla_serializada[key_str] = valor
     return jsonify(tabla_serializada)
-
-
-
-import requests
-import os
-from datetime import datetime
-
-# Patrones para detectar intenciones
-PATRONES_IMAGEN = [
-    "genera imagen", "generar imagen", "crea imagen", "crear imagen",
-    "muestra imagen", "mostrar imagen", "crea foto", "crear foto",
-    "genera foto", "generar foto", "imagen", "foto", "visual",
-    "como se ve", "cómo se ve", "visualizar", "ver imagen"
-]
-
-PATRONES_TEXTO = [
-    "información", "informacion", "info", "datos", "características",
-    "caracteristicas", "detalles", "descripción", "descripcion",
-    "quiero información", "quiero informacion", "dame información",
-    "dame informacion", "explica", "cuéntame", "cuentame"
-]
-
-def detectar_intencion(texto):
-    """
-    Detecta si el usuario quiere texto, imagen o ambos
-    Returns: 'texto', 'imagen', 'ambos'
-    """
-    texto_lower = texto.lower()
-    
-    quiere_imagen = any(patron in texto_lower for patron in PATRONES_IMAGEN)
-    quiere_texto = any(patron in texto_lower for patron in PATRONES_TEXTO)
-    
-    if quiere_imagen and quiere_texto:
-        return 'ambos'
-    elif quiere_imagen:
-        return 'imagen'
-    elif quiere_texto:
-        return 'texto'
-    else:
-        # Por defecto, si no se especifica, dar información
-        return 'texto'
-
-def generar_imagen_animal(animal_data, nombre_comun):
-    """
-    Genera imagen del animal usando Stability AI
-    """
-    try:
-        # Construir prompt basado en los datos del animal
-        caracteristicas = animal_data.get('Caracteristicas', '')
-        habitat = animal_data.get('Habitat', '')
-        
-        prompt = f"""
-        A detailed, photorealistic image of {nombre_comun}, a species from Colombia. 
-        {caracteristicas if caracteristicas else ''}
-        Natural habitat: {habitat if habitat else 'Colombian biodiversity'}
-        High quality, National Geographic style, natural lighting, 
-        wildlife photography, detailed textures, vibrant colors
-        """
-        
-        response = requests.post(
-            "https://api.stability.ai/v2beta/stable-image/generate/ultra",
-            headers={
-                "authorization": "Bearer sk-DFLxApGPeGMlMm4FSDiyloIEFxMUuXuLcbHaZdkKtizllwka",
-                "accept": "image/*"
-            },
-            files={"none": ''},
-            data={
-                "prompt": prompt.strip(),
-                "output_format": "webp",
-            },
-        )
-        
-        if response.status_code == 200:
-            # Generar nombre único para la imagen
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{nombre_comun.replace(' ', '_')}_{timestamp}.webp"
-            
-            # Guardar imagen
-            with open(filename, 'wb') as file:
-                file.write(response.content)
-            
-            return {
-                "success": True,
-                "filename": filename,
-                "message": "Imagen generada exitosamente"
-            }
-        else:
-            return {
-                "success": False,
-                "error": "Error al generar imagen",
-                "details": response.text
-            }
-            
-    except Exception as e:
-        return {
-            "success": False,
-            "error": "Error en la generación de imagen",
-            "details": str(e)
-        }
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -546,7 +571,6 @@ def predict():
     
     return jsonify(response_data)
 
-
 @app.route('/imagen/<filename>')
 def get_imagen(filename):
     """
@@ -561,15 +585,5 @@ def get_imagen(filename):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-
-
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-
-
-
-
-
-
-
